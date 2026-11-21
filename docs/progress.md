@@ -4,7 +4,7 @@
 | --- | --- |
 | 0 · Repository initialization | Passed. The private GitHub repository and local `main` were verified at `01c1a79`. |
 | 1 · Project foundation | Passed. The application built and launched on Windows 11. |
-| 2 · Visual interface | Implemented. Single-display verification passed. Dual-display verification is pending. |
+| 2 · Visual interface | Implemented. Single-display verification passed. The user approved deferring dual-display verification so Phase 3 can proceed. |
 
 ## Phase 1 verification
 
@@ -21,4 +21,4 @@
 - Verified that the dark theme and the resized and repositioned window returned after restarting. Verified that the transparency selector offered four presets and applied the Solid preset.
 - The first drag and resize implementation failed in the Windows session. Retesting passed after switching to pointer capture. Increased the tint opacity after checking dark-theme contrast on a light backdrop.
 - `npm run test:panel` passed six tests with simulated Tauri window commands. They exercise mixed display scales, disconnect and reconnect, enumeration order, and recovery from incomplete display detection or placement failure. The follow-up also passed lint, TypeScript, the four Rust storage tests, and an optimized Windows launch check.
-- The available Windows session has one active display. The gate still requires moving between two displays, checking each display's layout, and verifying relocation on disconnect and restoration on reconnect.
+- Deferred with user approval. The available Windows session has one active display. Moving between displays, per-display layout, disconnect relocation, and reconnect restoration still need a Windows session with two active displays.

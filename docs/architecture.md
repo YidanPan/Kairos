@@ -13,3 +13,5 @@ Migration 001 creates `tasks` with a stable text ID, a required title and a UTC 
 Migration 002 adds `app_settings`. The `panel` key stores the selected theme and transparency, the preferred display, and a layout for each display. Window layouts use display-relative logical coordinates. Kairos clamps the restored geometry to the display work area and caps the panel height at 70% of that work area.
 
 The local WebView capability grants the window operations used by the panel. The Rust backend owns the tray and applies Windows Acrylic. The UI supplies a readable tinted surface when Acrylic is unavailable.
+
+Migration 003 adds task details, categories, and schedule history while preserving tasks from earlier versions. Scheduled dates and deadlines are stored as independent local calendar fields. A missing deadline time is interpreted as 23:59. The task board command applies each edit and records automatic reschedules in a single SQLite transaction. Task settings and manual order are persisted locally.

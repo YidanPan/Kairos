@@ -2,6 +2,7 @@
 
 mod panel;
 mod storage;
+mod tasks;
 
 use serde::Serialize;
 use tauri::Manager;
@@ -44,6 +45,7 @@ fn main() {
             panel::load_panel_preferences,
             panel::save_panel_preferences,
             panel::set_panel_backdrop,
+            tasks::task_board,
         ])
         .run(tauri::generate_context!())
         .expect("Kairos could not start");

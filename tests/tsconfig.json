@@ -4,5 +4,5 @@
     "noEmit": false,
     "outDir": "../node_modules/.cache/kairos-tests"
   },
-  "include": ["../src/panel.ts"]
+  "include": ["../src/panel.ts", "../src/taskModel.ts"]
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getStorageInfo, isDesktop } from './desktop';
+import { TaskWorkspace } from './TaskWorkspace';
 import { connectPanel, defaultAppearance, resizeHandles, setBackdrop, startPanelGesture } from './panel';
 import type { Appearance, Panel, Theme, Transparency } from './panel';
 
@@ -23,6 +24,7 @@ export function App() {
   const [systemDark, setSystemDark] = useState(() => matchMedia('(prefers-color-scheme: dark)').matches);
   const chrome = useRef<HTMLElement>(null);
   const content = useRef<HTMLDivElement>(null);
+  const appearanceSettings = useRef<HTMLElement>(null);
   const panelWindow = isDesktop ? getCurrentWindow() : null;
   const dark = appearance.theme === 'dark' || (appearance.theme === 'system' && systemDark);
 
@@ -86,6 +88,10 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    if (settingsOpen) appearanceSettings.current?.scrollIntoView({ block: 'nearest' });
+  }, [settingsOpen]);
+
+  useEffect(() => {
     if (!isDesktop) return;
 
     let active = true;
@@ -129,12 +135,10 @@ export function App() {
         <button className="settings-button" type="button" aria-expanded={settingsOpen} aria-controls="appearance-settings" onClick={() => setSettingsOpen((open) => !open)}>Settings</button>
       </header>
       <div className="panel-scroll">
-        <div className="panel-body" ref={content}>
-          <time>{today}</time>
-          <p className="tagline">At your own pace.</p>
+        <div className={storage.status === 'ready' ? 'panel-body task-board-body' : 'panel-body'} ref={content}>
+          {storage.status !== 'ready' && <><time>{today}</time><p className="tagline">At your own pace.</p></>}
           {!isDesktop && <p className="status">Open the desktop app to access local storage.</p>}
           {isDesktop && storage.status === 'loading' && <p className="status" role="status">Opening local storage…</p>}
-          {isDesktop && storage.status === 'ready' && <p className="status" role="status">Local storage is ready.</p>}
           {isDesktop && storage.status === 'error' && (
             <div className="storage-error">
               <p className="status" role="alert">{storage.message}</p>
@@ -142,7 +146,7 @@ export function App() {
             </div>
           )}
           {windowError && <p className="status" role="alert">{windowError}</p>}
-          <section id="appearance-settings" className="appearance-settings" aria-label="Appearance" hidden={!settingsOpen}>
+          <section ref={appearanceSettings} id="appearance-settings" className="appearance-settings" aria-label="Appearance" hidden={!settingsOpen}>
             <h2>Appearance</h2>
             <label>
               Theme
@@ -162,6 +166,7 @@ export function App() {
               </select>
             </label>
           </section>
+          {isDesktop && storage.status === 'ready' && <TaskWorkspace />}
         </div>
       </div>
       {panelWindow && resizeHandles.map((direction) => (

@@ -5,6 +5,7 @@ const FILE_NAME: &str = "kairos.sqlite3";
 const MIGRATIONS: &[&str] = &[
     include_str!("../migrations/001_initial.sql"),
     include_str!("../migrations/002_app_settings.sql"),
+    include_str!("../migrations/003_tasks.sql"),
 ];
 
 #[derive(Debug)]
@@ -143,7 +144,7 @@ mod tests {
             })
             .unwrap();
         assert_eq!(title, "Read");
-        assert_eq!(version(&connection).unwrap(), 2);
+        assert_eq!(version(&connection).unwrap() as usize, MIGRATIONS.len());
     }
 
     #[test]

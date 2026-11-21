@@ -6,6 +6,7 @@
 | 1 · Project foundation | Passed. The application built and launched on Windows 11. |
 | 2 · Visual interface | Implemented. Single-display verification passed. The user approved deferring dual-display verification so Phase 3 can proceed. |
 | 3 · Core task management | Passed. The core task board was verified in an isolated Windows desktop profile. |
+| 4 · Advanced task features | Passed. Subtasks, recurrence, completed history, and Trash were verified in an isolated Windows desktop profile. |
 
 ## Phase 1 verification
 
@@ -29,3 +30,12 @@
 - Added Quick Add, autosaving task details, categories with color and reassignment, priorities, independent scheduled dates and deadlines, and the Today, Upcoming, and No Date sections. The board retains schedule history and supports automatic and persistent manual ordering.
 - The isolated Windows desktop build verified Escape cancellation, Enter submission, category creation, editing, automatic movement into Today, default deadline time, completion and restoration, and drag reordering. Relaunching the build preserved the title, notes, category, priority, schedule, deadline, and sorting mode.
 - All nine frontend tests and nine Rust tests passed. ESLint, TypeScript, Rust formatting, and the optimized Windows build passed.
+
+## Group 2 verification
+
+Status **PASS** for Phases 3 and 4.
+
+- Verified adding, editing, removing, and reordering subtasks on Windows. The final subtask completed its parent, and the successor copied unchecked subtasks and the original deadline offset.
+- Verified recurrence edit scopes, skipping, stopping a series, completed search and date browsing, batch restoration, the permanent-deletion confirmation, and reversible clearing of Completed.
+- Restarted the isolated Windows application and verified that completed and skipped occurrences and their subtasks persisted. SQLite schema version 4, integrity, and foreign-key checks passed. Migration and regression tests preserve Phase 3 data and behavior.
+- All nine frontend tests and 18 Rust tests passed. ESLint, TypeScript, Rust formatting, and the optimized Windows build passed.

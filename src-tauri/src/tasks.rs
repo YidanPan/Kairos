@@ -1,12 +1,19 @@
 use std::collections::HashSet;
 
-use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime, Utc};
+use chrono::{Local, NaiveDateTime, NaiveTime};
 use rusqlite::{params, Connection, OptionalExtension, Transaction, TransactionBehavior};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
 use crate::storage;
 
+mod advanced;
+mod recurrence;
+use advanced::{Scope, Subtask};
+use recurrence::Rule;
+
+#[cfg(test)]
+mod advanced_tests;
 #[cfg(test)]
 mod tests;
 
@@ -28,6 +35,11 @@ pub struct Task {
     trashed_at: Option<String>,
     rescheduled_on: Option<String>,
     manual_order: i64,
+    series_id: Option<String>,
+    origin_series_id: Option<String>,
+    occurrence_on: Option<String>,
+    skipped_at: Option<String>,
+    recurrence: Option<Rule>,
 }
 
 #[derive(Debug, Serialize)]
@@ -54,6 +66,7 @@ pub struct Board {
     categories: Vec<Category>,
     schedule_history: Vec<ScheduleChange>,
     sort_mode: SortMode,
+    subtasks: Vec<Subtask>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
@@ -63,7 +76,7 @@ pub enum SortMode {
     Manual,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Priority {
     High,
@@ -71,7 +84,17 @@ pub enum Priority {
     Low,
 }
 
-#[derive(Debug, Deserialize)]
+impl Priority {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::High => "high",
+            Self::Medium => "medium",
+            Self::Low => "low",
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "field", content = "value", rename_all = "camelCase")]
 pub enum Change {
     Title(String),
@@ -82,7 +105,7 @@ pub enum Change {
     Notes(String),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Deadline {
     date: Option<String>,
     time: Option<String>,
@@ -122,6 +145,51 @@ pub enum Action {
     Reorder {
         ids: Vec<String>,
     },
+    EditOccurrence {
+        id: String,
+        change: Change,
+        scope: Scope,
+    },
+    SaveRecurrence {
+        id: String,
+        rule: Option<Rule>,
+        scope: Scope,
+    },
+    SkipOccurrence {
+        id: String,
+    },
+    TrashTask {
+        id: String,
+        scope: Scope,
+    },
+    TrashCompleted {
+        ids: Option<Vec<String>>,
+    },
+    RestoreTrash {
+        ids: Vec<String>,
+    },
+    PurgeTrash {
+        ids: Option<Vec<String>>,
+    },
+    SaveSubtask {
+        task_id: String,
+        id: String,
+        title: String,
+    },
+    SetSubtaskCompleted {
+        task_id: String,
+        id: String,
+        completed: bool,
+    },
+    RemoveSubtask {
+        task_id: String,
+        id: String,
+    },
+    MoveSubtask {
+        task_id: String,
+        id: String,
+        neighbor_id: String,
+    },
 }
 
 #[tauri::command]
@@ -147,7 +215,7 @@ fn board(
         .transaction_with_behavior(TransactionBehavior::Immediate)
         .map_err(db_error)?;
     if let Some(action) = action {
-        apply(&transaction, action)?;
+        apply(&transaction, action, now)?;
     }
     carry_forward(&transaction, now).map_err(db_error)?;
     let result = snapshot(&transaction).map_err(db_error)?;
@@ -169,14 +237,14 @@ fn required_text<'a>(value: &'a str, label: &str) -> BoardResult<&'a str> {
 
 fn validate_date(value: Option<&str>) -> BoardResult<()> {
     if let Some(value) = value {
-        if value.len() != 10 || NaiveDate::parse_from_str(value, "%Y-%m-%d").is_err() {
+        if recurrence::date(value).is_none() {
             return Err("Enter a valid date.".into());
         }
     }
     Ok(())
 }
 
-fn apply(tx: &Transaction<'_>, action: Action) -> BoardResult<()> {
+fn apply(tx: &Transaction<'_>, action: Action, now: NaiveDateTime) -> BoardResult<()> {
     match action {
         Action::Create { id, title } => {
             let title = required_text(&title, "task title")?;
@@ -185,13 +253,9 @@ fn apply(tx: &Transaction<'_>, action: Action) -> BoardResult<()> {
                 params![id, title],
             ).map_err(db_error)?;
         }
-        Action::Edit { id, change } => edit(tx, &id, change)?,
+        Action::Edit { id, change } => advanced::edit_occurrence(tx, &id, change, Scope::This)?,
         Action::SetCompleted { id, completed } => {
-            let timestamp = completed.then(|| Utc::now().to_rfc3339());
-            tx.execute(
-                "UPDATE tasks SET completed_at = CASE WHEN ?2 IS NULL THEN NULL ELSE coalesce(completed_at,?2) END WHERE id=?1 AND trashed_at IS NULL",
-                params![id, timestamp],
-            ).map_err(db_error)?;
+            advanced::set_completed(tx, &id, completed, now.date())?
         }
         Action::SaveCategory { id, name, color } => {
             let name = required_text(&name, "category name")?;
@@ -219,6 +283,11 @@ fn apply(tx: &Transaction<'_>, action: Action) -> BoardResult<()> {
                     params![id, replacement],
                 )
                 .map_err(db_error)?;
+                tx.execute(
+                    "UPDATE recurrence_series SET category_id=?2 WHERE category_id=?1",
+                    params![id, replacement],
+                )
+                .map_err(db_error)?;
             }
             tx.execute("DELETE FROM categories WHERE id=?1", [id])
                 .map_err(db_error)?;
@@ -234,6 +303,7 @@ fn apply(tx: &Transaction<'_>, action: Action) -> BoardResult<()> {
             ).map_err(db_error)?;
         }
         Action::Reorder { ids } => reorder(tx, &ids)?,
+        other => advanced::apply(tx, other, now.date())?,
     }
     Ok(())
 }
@@ -245,17 +315,7 @@ fn edit(tx: &Transaction<'_>, id: &str, change: Change) -> BoardResult<()> {
             Some(required_text(&value, "task title")?.to_owned()),
         ),
         Change::Category(value) => ("category_id", value),
-        Change::Priority(priority) => (
-            "priority",
-            Some(
-                match priority {
-                    Priority::High => "high",
-                    Priority::Medium => "medium",
-                    Priority::Low => "low",
-                }
-                .into(),
-            ),
-        ),
+        Change::Priority(priority) => ("priority", Some(priority.as_str().into())),
         Change::Notes(value) => ("notes", Some(value)),
         Change::ScheduledDate(value) => {
             validate_date(value.as_deref())?;
@@ -305,7 +365,7 @@ fn reorder(tx: &Transaction<'_>, ids: &[String]) -> BoardResult<()> {
     if selected.len() != ids.len() {
         return Err("A task appears more than once in the sort order.".into());
     }
-    let mut query = tx.prepare("SELECT id FROM tasks WHERE completed_at IS NULL AND trashed_at IS NULL ORDER BY manual_order, created_at DESC, id").map_err(db_error)?;
+    let mut query = tx.prepare("SELECT id FROM tasks WHERE completed_at IS NULL AND trashed_at IS NULL AND skipped_at IS NULL ORDER BY manual_order, created_at DESC, id").map_err(db_error)?;
     let active: Vec<String> = query
         .query_map([], |row| row.get(0))
         .map_err(db_error)?
@@ -339,7 +399,7 @@ fn reorder(tx: &Transaction<'_>, ids: &[String]) -> BoardResult<()> {
 fn carry_forward(tx: &Transaction<'_>, now: NaiveDateTime) -> rusqlite::Result<()> {
     let today = now.format("%Y-%m-%d").to_string();
     let time = now.format("%H:%M:%S").to_string();
-    let candidates = "completed_at IS NULL AND trashed_at IS NULL AND scheduled_date < ?1
+    let candidates = "completed_at IS NULL AND trashed_at IS NULL AND skipped_at IS NULL AND scheduled_date < ?1
         AND (due_date IS NULL OR due_date > ?1 OR (due_date = ?1 AND coalesce(due_time,'23:59') || ':00' > ?2))";
     tx.execute(
         &format!("INSERT INTO task_schedule_history(task_id,previous_date,next_date,automatic) SELECT id,scheduled_date,?1,1 FROM tasks WHERE {candidates}"),
@@ -353,7 +413,8 @@ fn carry_forward(tx: &Transaction<'_>, now: NaiveDateTime) -> rusqlite::Result<(
 }
 
 fn snapshot(tx: &Transaction<'_>) -> rusqlite::Result<Board> {
-    let mut task_query = tx.prepare("SELECT id,title,category_id,priority,scheduled_date,due_date,due_time,notes,created_at,completed_at,trashed_at,rescheduled_on,manual_order FROM tasks ORDER BY manual_order,created_at DESC,id")?;
+    let mut task_query = tx.prepare("SELECT t.id,t.title,t.category_id,t.priority,t.scheduled_date,t.due_date,t.due_time,t.notes,t.created_at,t.completed_at,t.trashed_at,t.rescheduled_on,t.manual_order,t.series_id,t.origin_series_id,t.occurrence_on,t.skipped_at,s.rule
+        FROM tasks t LEFT JOIN recurrence_series s ON s.id=t.series_id ORDER BY t.manual_order,t.created_at DESC,t.id")?;
     let tasks = task_query
         .query_map([], |row| {
             Ok(Task {
@@ -370,6 +431,11 @@ fn snapshot(tx: &Transaction<'_>) -> rusqlite::Result<Board> {
                 trashed_at: row.get(10)?,
                 rescheduled_on: row.get(11)?,
                 manual_order: row.get(12)?,
+                series_id: row.get(13)?,
+                origin_series_id: row.get(14)?,
+                occurrence_on: row.get(15)?,
+                skipped_at: row.get(16)?,
+                recurrence: advanced::read_rule(row, 17)?,
             })
         })?
         .collect::<rusqlite::Result<_>>()?;
@@ -413,5 +479,6 @@ fn snapshot(tx: &Transaction<'_>) -> rusqlite::Result<Board> {
         categories,
         schedule_history,
         sort_mode,
+        subtasks: advanced::subtasks(tx)?,
     })
 }

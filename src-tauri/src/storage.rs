@@ -6,6 +6,7 @@ const MIGRATIONS: &[&str] = &[
     include_str!("../migrations/001_initial.sql"),
     include_str!("../migrations/002_app_settings.sql"),
     include_str!("../migrations/003_tasks.sql"),
+    include_str!("../migrations/004_advanced_tasks.sql"),
 ];
 
 #[derive(Debug)]
@@ -156,5 +157,26 @@ mod tests {
             Err(StorageError::NewerSchema(100))
         ));
         assert_eq!(version(&connection).unwrap(), 100);
+    }
+
+    #[test]
+    fn migrates_existing_completion_timestamps_into_history() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        connection
+            .pragma_update(None, "foreign_keys", true)
+            .unwrap();
+        migrate(&mut connection, &MIGRATIONS[..3]).unwrap();
+        let stamp = "2026-11-21T12:00:00Z";
+        connection.execute("INSERT INTO tasks(id,title,scheduled_date,completed_at) VALUES ('old','Read','2026-11-21',?1)", [stamp]).unwrap();
+        migrate(&mut connection, MIGRATIONS).unwrap();
+        let (finished, planned): (String, String) = connection
+            .query_row(
+                "SELECT completed_at,planned_on FROM task_completions WHERE task_id='old'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(finished, stamp);
+        assert_eq!(planned, "2026-11-21");
     }
 }

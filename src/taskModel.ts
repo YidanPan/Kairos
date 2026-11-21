@@ -3,6 +3,16 @@ export type SortMode = 'automatic' | 'manual';
 export type Section = 'Today' | 'Upcoming' | 'No Date';
 export const sections: readonly Section[] = ['Today', 'Upcoming', 'No Date'];
 export const priorities: readonly Priority[] = ['high', 'medium', 'low'];
+export type EditScope = 'this' | 'future' | 'entire';
+export type Frequency = 'days' | 'weeks' | 'months';
+export interface RecurrenceRule {
+  frequency: Frequency;
+  interval: number;
+  weekdays: number[];
+  monthDay: number | null;
+  endDate: string | null;
+}
+export interface Subtask { id: string; taskId: string; title: string; completedAt: string | null }
 
 export interface Task {
   id: string;
@@ -18,6 +28,11 @@ export interface Task {
   trashedAt: string | null;
   rescheduledOn: string | null;
   manualOrder: number;
+  seriesId: string | null;
+  originSeriesId: string | null;
+  occurrenceOn: string | null;
+  skippedAt: string | null;
+  recurrence: RecurrenceRule | null;
 }
 
 export interface Category { id: string; name: string; color: string }
@@ -33,6 +48,7 @@ export interface Board {
   categories: Category[];
   scheduleHistory: ScheduleChange[];
   sortMode: SortMode;
+  subtasks: Subtask[];
 }
 
 export type Change =
@@ -48,7 +64,17 @@ export type TaskAction =
   | ({ kind: 'saveCategory' } & Category)
   | { kind: 'deleteCategory'; id: string; replacement: string | null }
   | { kind: 'setSort'; mode: SortMode }
-  | { kind: 'reorder'; ids: string[] };
+  | { kind: 'reorder'; ids: string[] }
+  | { kind: 'editOccurrence'; id: string; change: Change; scope: EditScope }
+  | { kind: 'saveRecurrence'; id: string; rule: RecurrenceRule | null; scope: EditScope }
+  | { kind: 'skipOccurrence'; id: string }
+  | { kind: 'trashTask'; id: string; scope: EditScope }
+  | { kind: 'trashCompleted' | 'purgeTrash'; ids: string[] | null }
+  | { kind: 'restoreTrash'; ids: string[] }
+  | { kind: 'saveSubtask'; taskId: string; id: string; title: string }
+  | { kind: 'setSubtaskCompleted'; taskId: string; id: string; completed: boolean }
+  | { kind: 'removeSubtask'; taskId: string; id: string }
+  | { kind: 'moveSubtask'; taskId: string; id: string; neighborId: string };
 
 export function localDay(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, '0');

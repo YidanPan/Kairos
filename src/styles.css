@@ -219,6 +219,31 @@ button:disabled { cursor: default; opacity: .6; }
 .task-primary { background: var(--text); color: var(--surface); }
 .task-primary:hover { background: var(--muted); }
 
+.task-indicators { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; grid-column: 3; }
+.task-extras { border-top: 1px solid var(--border); padding: 8px 0; }
+.task-extras summary { cursor: pointer; font-weight: 600; }
+.task-extras summary span { margin-inline-start: 4px; color: var(--muted); font-weight: 400; }
+.task-extras[open] summary { margin-bottom: 8px; }
+.subtask-list { display: grid; gap: 5px; padding: 0; margin: 0; list-style: none; }
+.subtask-list li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 5px; align-items: center; }
+.subtask-list input[type='checkbox'], .archive-selection input[type='checkbox'], .weekday-options input { accent-color: var(--text); min-height: 0; }
+.subtask-actions, .subtask-add { display: flex; align-items: center; gap: 3px; }
+.subtask-actions button { padding-inline: 4px; min-height: 24px; }
+.subtask-add { margin-top: 7px; }
+.subtask-add input { flex: 1; }
+.weekday-options { display: flex; flex-wrap: wrap; gap: 6px; border: 1px solid var(--border); border-radius: 6px; margin: 0; padding: 5px; }
+.weekday-options label { display: flex; gap: 2px; align-items: center; }
+.weekday-options p { width: 100%; }
+.repeat-removal { display: flex; align-items: flex-end; justify-content: space-between; gap: 5px; }
+.task-skip { margin-top: 8px; }
+.archive-controls { display: flex; flex-wrap: wrap; gap: 5px; margin: 5px 0 8px; font-size: .76rem; }
+.archive-controls input[type='search'] { flex: 1; }
+.archive-row { display: grid; grid-template-columns: 1fr auto; gap: 1px 6px; align-items: center; padding: 3px; border-bottom: 1px solid var(--border); }
+.archive-selection { display: flex; align-items: center; min-width: 0; gap: 6px; }
+.archive-row time { font-size: .68rem; }
+.archive-row .task-actions { grid-column: 1 / -1; margin-bottom: 4px; font-size: .72rem; }
+.archive-actions { margin-top: 8px; font-size: .76rem; }
+
 .resize-handle { position: absolute; z-index: 2; touch-action: none; }
 .resize-handle[data-direction='North'], .resize-handle[data-direction='South'] { inset-inline: 10px; height: 5px; cursor: ns-resize; }
 .resize-handle[data-direction='East'], .resize-handle[data-direction='West'] { inset-block: 10px; width: 5px; cursor: ew-resize; }

@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { taskBoard } from './desktop';
 import { CategoryOptions, Modal, TaskDetails } from './TaskDetails';
+import { TaskHistory } from './TaskHistory';
+import type { HistoryKind } from './TaskHistory';
 import { groupTasks, isOverdue, localDay, moveTask, priorities, sections, taskStatus } from './taskModel';
-import type { Board, Category, Priority, Section, SortMode, Task, TaskAction } from './taskModel';
+import type { Board, Category, Priority, Section, SortMode, Subtask, Task, TaskAction } from './taskModel';
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 const newCategory = (): Category => ({ id: crypto.randomUUID(), name: '', color: '#888888' });
@@ -62,8 +64,8 @@ function Categories({ categories, run, onClose }: { categories: Category[]; run:
   </Modal>;
 }
 
-function TaskRow({ task, category, now, manual, onOpen, onToggle, onDrop, onMove }: {
-  task: Task; category?: Category; now: Date; manual: boolean; onOpen: () => void; onToggle: () => void;
+function TaskRow({ task, category, subtasks, now, manual, onOpen, onToggle, onDrop, onMove }: {
+  task: Task; category?: Category; subtasks: Subtask[]; now: Date; manual: boolean; onOpen: () => void; onToggle: () => void;
   onDrop: (id: string) => void; onMove: (offset: number) => void;
 }) {
   const status = taskStatus(task, now);
@@ -77,7 +79,10 @@ function TaskRow({ task, category, now, manual, onOpen, onToggle, onDrop, onMove
   }}>
     <input className="task-check" type="checkbox" checked={Boolean(task.completedAt)} aria-label={`${task.completedAt ? 'Restore' : 'Complete'} ${task.title}`} onChange={onToggle} />
     <button type="button" className="task-title" onClick={onOpen}>{task.title}</button>
-    {status && !task.completedAt && <span className="task-state" data-overdue={isOverdue(task, now)}>{status}</span>}
+    <div className="task-indicators">
+      {status && <span className="task-state" data-overdue={isOverdue(task, now)}>{status}</span>}
+      {subtasks.length > 0 && <span className="task-state" aria-label="Subtask progress">{subtasks.filter((item) => item.completedAt).length}/{subtasks.length}</span>}
+    </div>
     {manual && <div className="task-reorder"><button type="button" aria-label={`Move ${task.title} up`} onClick={() => onMove(-1)}>↑</button>
       <button type="button" aria-label={`Move ${task.title} down`} onClick={() => onMove(1)}>↓</button></div>}
     <div className="task-metadata">
@@ -98,7 +103,7 @@ export function TaskWorkspace() {
   const [saving, setSaving] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [detailId, setDetailId] = useState<string>();
-  const [completedOpen, setCompletedOpen] = useState(false);
+  const [view, setView] = useState<'tasks' | HistoryKind>('tasks');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
@@ -152,6 +157,7 @@ export function TaskWorkspace() {
     if (await run({ kind: 'create', id: crypto.randomUUID(), title })) {
       setNewTitle('');
       setQuickAdd(false);
+      setView('tasks');
     }
     setSaving(false);
   }
@@ -164,11 +170,20 @@ export function TaskWorkspace() {
   const categoriesById = new Map(board.categories.map((category) => [category.id, category]));
   const filterCategory = categoriesById.has(categoryFilter) ? categoryFilter : '';
   const matchesFilter = (task: Task) => (!filterCategory || task.categoryId === filterCategory) && (!priorityFilter || task.priority === priorityFilter);
-  const active = board.tasks.filter((task) => !task.completedAt && !task.trashedAt);
+  const active = board.tasks.filter((task) => !task.completedAt && !task.trashedAt && !task.skippedAt);
   const visible = active.filter(matchesFilter);
   const grouped = groupTasks(visible, board.sortMode, now);
-  const completed = board.tasks.filter((task) => task.completedAt && !task.trashedAt && matchesFilter(task))
-    .sort((left, right) => (right.completedAt ?? '').localeCompare(left.completedAt ?? ''));
+  const archives = {
+    completed: board.tasks.filter((task) => task.completedAt && !task.trashedAt && matchesFilter(task)),
+    trash: board.tasks.filter((task) => task.trashedAt),
+    skipped: board.tasks.filter((task) => task.skippedAt && !task.trashedAt),
+  };
+  const subtasksByTask = new Map<string, Subtask[]>();
+  for (const item of board.subtasks) {
+    const items = subtasksByTask.get(item.taskId);
+    if (items) items.push(item);
+    else subtasksByTask.set(item.taskId, [item]);
+  }
   const hour = now.getHours();
   const greeting = hour < 12 ? 'Good morning.' : hour < 18 ? 'Good afternoon.' : 'Good evening.';
   const today = localDay(now);
@@ -179,7 +194,7 @@ export function TaskWorkspace() {
   }
 
   function row(task: Task, section?: Section, index = 0) {
-    return <TaskRow key={task.id} task={task} now={now} category={categoriesById.get(task.categoryId ?? '')}
+    return <TaskRow key={task.id} task={task} now={now} category={categoriesById.get(task.categoryId ?? '')} subtasks={subtasksByTask.get(task.id) ?? []}
       manual={board?.sortMode === 'manual' && Boolean(section)} onOpen={() => setDetailId(task.id)}
       onToggle={() => void run({ kind: 'setCompleted', id: task.id, completed: !task.completedAt })}
       onDrop={(source) => { if (section) reorder(section, source, task.id); }}
@@ -199,7 +214,9 @@ export function TaskWorkspace() {
         <button type="submit" disabled={saving || !newTitle.trim()}>Add</button>
       </form>}
       <div className="task-controls">
-        <button type="button" aria-pressed={completedOpen} onClick={() => setCompletedOpen(!completedOpen)}>{completedOpen ? 'Tasks' : 'Completed'}</button>
+        <button type="button" aria-pressed={view === 'completed'} onClick={() => setView(view === 'completed' ? 'tasks' : 'completed')}>{view === 'completed' ? 'Tasks' : 'Completed'}</button>
+        <button type="button" aria-pressed={view === 'trash'} onClick={() => setView(view === 'trash' ? 'tasks' : 'trash')}>{view === 'trash' ? 'Tasks' : 'Trash'}</button>
+        {(archives.skipped.length > 0 || view === 'skipped') && <button type="button" aria-pressed={view === 'skipped'} onClick={() => setView(view === 'skipped' ? 'tasks' : 'skipped')}>{view === 'skipped' ? 'Tasks' : 'Skipped'}</button>}
         <button type="button" aria-expanded={filterOpen} onClick={() => setFilterOpen(!filterOpen)}>Filter{(filterCategory || priorityFilter) && ' ·'}</button>
         <button type="button" onClick={() => setCategoriesOpen(true)}>Categories</button>
         <select aria-label="Task order" value={board.sortMode} onChange={(event) => void run({ kind: 'setSort', mode: event.target.value as SortMode })}>
@@ -214,13 +231,11 @@ export function TaskWorkspace() {
       </div>}
     </div>
     {error && <p className="task-hint task-error" role="alert">{error}<button type="button" aria-label="Dismiss error" onClick={() => setError('')}>×</button></p>}
-    {completedOpen ? <section className="task-section"><h3>Completed</h3>
-      {completed.length ? <ul>{completed.map((task) => row(task))}</ul> : <p className="task-hint">No completed tasks.</p>}
-    </section> : sections.map((section) => <section className="task-section" key={section}><h3>{section}</h3>
+    {view === 'tasks' ? sections.map((section) => <section className="task-section" key={section}><h3>{section}</h3>
       {grouped[section].length ? <ul>{grouped[section].map((task, index) => row(task, section, index))}</ul> : <p className="task-hint">No tasks</p>}
-    </section>)}
+    </section>) : <TaskHistory key={view} kind={view} items={archives[view]} run={run} openTask={setDetailId} />}
     {detail && <TaskDetails key={detail.id} task={detail} categories={board.categories} history={board.scheduleHistory.filter((entry) => entry.taskId === detail.id)}
-      onChange={(change) => run({ kind: 'edit', id: detail.id, change })} onClose={() => setDetailId(undefined)} />}
+      subtasks={subtasksByTask.get(detail.id) ?? []} run={run} onClose={() => setDetailId(undefined)} />}
     {categoriesOpen && <Categories categories={board.categories} run={run} onClose={() => setCategoriesOpen(false)} />}
   </div>;
 }

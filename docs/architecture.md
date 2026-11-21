@@ -9,3 +9,7 @@
 On Windows, Kairos uses Tauri’s application data directory for the stable application identifier `app.kairos.desktop`. The database file is `kairos.sqlite3`. The application does not store task data in the installation directory or the Git checkout.
 
 Migration 001 creates `tasks` with a stable text ID, a required title and a UTC creation timestamp. Later migrations extend this foundation. Foreign-key checking is enabled on every connection.
+
+Migration 002 adds `app_settings`. The `panel` key stores the selected theme and transparency, the preferred display, and a layout for each display. Window layouts use display-relative logical coordinates. Kairos clamps the restored geometry to the display work area and caps the panel height at 70% of that work area.
+
+The local WebView capability grants the window operations used by the panel. The Rust backend owns the tray and applies Windows Acrylic. The UI supplies a readable tinted surface when Acrylic is unavailable.

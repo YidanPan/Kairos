@@ -15,6 +15,7 @@ coverage/
 *.appx
 *.appxbundle
 *.pdb
+/src-tauri/gen/schemas/
 
 # Local configuration and credentials
 .env

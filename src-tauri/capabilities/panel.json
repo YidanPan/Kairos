@@ -1,0 +1,15 @@
+{
+  "identifier": "panel",
+  "description": "Control the Kairos desktop panel from its local WebView.",
+  "windows": ["main"],
+  "permissions": [
+    "core:event:default",
+    "core:window:default",
+    "core:window:allow-hide",
+    "core:window:allow-minimize",
+    "core:window:allow-set-position",
+    "core:window:allow-set-size",
+    "core:window:allow-set-size-constraints",
+    "core:window:allow-show"
+  ]
+}

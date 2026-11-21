@@ -2,7 +2,10 @@ use rusqlite::{Connection, TransactionBehavior};
 use std::{error::Error, fmt, fs, path::Path, time::Duration};
 
 const FILE_NAME: &str = "kairos.sqlite3";
-const MIGRATIONS: &[&str] = &[include_str!("../migrations/001_initial.sql")];
+const MIGRATIONS: &[&str] = &[
+    include_str!("../migrations/001_initial.sql"),
+    include_str!("../migrations/002_app_settings.sql"),
+];
 
 #[derive(Debug)]
 pub enum StorageError {
@@ -114,6 +117,33 @@ mod tests {
             )
             .unwrap();
         assert_eq!(table_count, 0);
+    }
+
+    #[test]
+    fn adds_panel_settings_without_changing_existing_tasks() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        migrate(&mut connection, &MIGRATIONS[..1]).unwrap();
+        connection
+            .execute(
+                "INSERT INTO tasks(id, title) VALUES ('existing', 'Read')",
+                [],
+            )
+            .unwrap();
+
+        migrate(&mut connection, MIGRATIONS).unwrap();
+        connection
+            .execute(
+                "INSERT INTO app_settings(key, value) VALUES ('panel', '{}')",
+                [],
+            )
+            .unwrap();
+        let title: String = connection
+            .query_row("SELECT title FROM tasks WHERE id = 'existing'", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(title, "Read");
+        assert_eq!(version(&connection).unwrap(), 2);
     }
 
     #[test]

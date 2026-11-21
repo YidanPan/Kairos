@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod panel;
 mod storage;
 
 use serde::Serialize;
@@ -29,7 +30,21 @@ async fn storage_info(app: tauri::AppHandle) -> Result<StorageInfo, String> {
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![storage_info])
+        .setup(panel::setup)
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                if let Err(error) = window.hide() {
+                    eprintln!("Could not hide Kairos: {error}");
+                }
+            }
+        })
+        .invoke_handler(tauri::generate_handler![
+            storage_info,
+            panel::load_panel_preferences,
+            panel::save_panel_preferences,
+            panel::set_panel_backdrop,
+        ])
         .run(tauri::generate_context!())
         .expect("Kairos could not start");
 }

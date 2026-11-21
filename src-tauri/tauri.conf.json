@@ -17,7 +17,13 @@
         "width": 440,
         "height": 420,
         "minWidth": 320,
-        "minHeight": 250
+        "minHeight": 250,
+        "decorations": false,
+        "transparent": true,
+        "shadow": true,
+        "visible": false,
+        "resizable": false,
+        "maximizable": false
       }
     ],
     "security": {

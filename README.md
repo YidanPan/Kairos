@@ -14,4 +14,18 @@ Kairos is a minimalist, local-first personal task manager for Windows 11. It is 
 
 ## Development
 
-Development starts with a runnable Tauri 2 application and versioned SQLite migrations. See the [product requirements](PRD.md) for the roadmap and the [development rules](DEVELOPMENT_RULES.md) for Git and quality gates.
+Use Windows 11 with Node.js 22.13+ LTS, the stable Rust MSVC toolchain, Microsoft C++ Build Tools with the Desktop development with C++ workload, and the WebView2 runtime.
+
+```powershell
+npm ci
+npm run tauri dev
+```
+
+```powershell
+npm run lint
+npm run build
+cargo test --manifest-path src-tauri/Cargo.toml
+npm run tauri build -- --no-bundle
+```
+
+See the [architecture](docs/architecture.md) for database details, the [progress log](docs/progress.md) for verification results, the [product requirements](PRD.md) for the roadmap, and the [development rules](DEVELOPMENT_RULES.md) for Git and quality gates.

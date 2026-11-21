@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "../node_modules/.cache/kairos-tests"
+  },
+  "include": ["../src/panel.ts"]
+}

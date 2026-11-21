@@ -20,4 +20,5 @@
 - On Windows 11, verified the frameless panel, Settings height adjustment, expand and restore, drag, horizontal and vertical resizing, minimize, and close with the process still running.
 - Verified that the dark theme and the resized and repositioned window returned after restarting. Verified that the transparency selector offered four presets and applied the Solid preset.
 - The first drag and resize implementation failed in the Windows session. Retesting passed after switching to pointer capture. Increased the tint opacity after checking dark-theme contrast on a light backdrop.
+- `npm run test:panel` passed six tests with simulated Tauri window commands. They exercise mixed display scales, disconnect and reconnect, enumeration order, and recovery from incomplete display detection or placement failure. The follow-up also passed lint, TypeScript, the four Rust storage tests, and an optimized Windows launch check.
 - The available Windows session has one active display. The gate still requires moving between two displays, checking each display's layout, and verifying relocation on disconnect and restoration on reconnect.

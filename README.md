@@ -23,6 +23,7 @@ npm run tauri dev
 
 ```powershell
 npm run lint
+npm run test:panel
 npm run build
 cargo test --manifest-path src-tauri/Cargo.toml
 npm run tauri build -- --no-bundle

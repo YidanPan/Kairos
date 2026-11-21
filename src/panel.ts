@@ -147,12 +147,21 @@ export async function connectPanel(signal: AbortSignal, report: (error: unknown)
 
   async function checkDisplays() {
     const displays = await availableMonitors();
-    const topology = JSON.stringify(displays.map((display) => [monitorKey(display), display.workArea, display.scaleFactor]));
-    if (topology === lastTopology || !displays.length || await window.isMinimized()) return;
-    lastTopology = topology;
+    if (!displays.length) {
+      lastTopology = '';
+      return false;
+    }
+    if (await window.isMinimized()) return false;
+    const topology = JSON.stringify([...displays]
+      .sort((left, right) => monitorKey(left).localeCompare(monitorKey(right)))
+      .map((display) => [monitorKey(display), display.workArea, display.scaleFactor]));
+    if (topology === lastTopology) return true;
+    lastTopology = '';
     const preferred = displays.find((display) => monitorKey(display) === preferences.display);
     const screen = preferred ?? await primaryMonitor() ?? displays[0];
     await restore(screen);
+    lastTopology = topology;
+    return false;
   }
 
   async function saveGeometry() {
@@ -185,9 +194,7 @@ export async function connectPanel(signal: AbortSignal, report: (error: unknown)
     globalThis.clearTimeout(geometryTimer);
     geometryTimer = globalThis.setTimeout(() => {
       void schedule(async () => {
-        const previousTopology = lastTopology;
-        await checkDisplays();
-        if (previousTopology === lastTopology) await saveGeometry();
+        if (await checkDisplays()) await saveGeometry();
       });
     }, 180);
   }
@@ -207,15 +214,15 @@ export async function connectPanel(signal: AbortSignal, report: (error: unknown)
   }, { once: true });
 
   try {
-    await checkDisplays();
     for (const register of [window.onMoved.bind(window), window.onResized.bind(window), window.onScaleChanged.bind(window)]) {
       const release = await register(geometryChanged);
       if (signal.aborted) { release(); return; }
       cleanup.push(release);
     }
-    const interval = globalThis.setInterval(() => { void schedule(checkDisplays); }, 2500);
+    const interval = globalThis.setInterval(() => { void schedule(async () => { await checkDisplays(); }); }, 2500);
     cleanup.push(() => globalThis.clearInterval(interval));
     observing = true;
+    await checkDisplays();
   } catch (error) {
     report(error);
   } finally {

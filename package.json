@@ -7,6 +7,7 @@
     "dev": "vite",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
+    "test:panel": "tsc -p tests/tsconfig.json && node --test tests/panel.test.mjs",
     "build": "npm run typecheck && vite build",
     "tauri": "tauri"
   },

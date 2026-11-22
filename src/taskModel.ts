@@ -13,6 +13,15 @@ export interface RecurrenceRule {
   endDate: string | null;
 }
 export interface Subtask { id: string; taskId: string; title: string; completedAt: string | null }
+export type ReminderRule = { kind: 'offset'; minutes: number } | { kind: 'custom'; at: string };
+export interface TaskReminderPreferences { overrides: boolean; allowDuringDnd: boolean; rules: ReminderRule[] }
+export interface RepeatEdit { rule: RecurrenceRule | null; scope: EditScope }
+
+export type SubtaskAction =
+  | { kind: 'saveSubtask'; taskId: string; id: string; title: string }
+  | { kind: 'setSubtaskCompleted'; taskId: string; id: string; completed: boolean }
+  | { kind: 'removeSubtask'; taskId: string; id: string }
+  | { kind: 'moveSubtask'; taskId: string; id: string; neighborId: string };
 
 export interface Task {
   id: string;
@@ -80,6 +89,7 @@ export type Change =
 export type TaskAction =
   | { kind: 'create'; id: string; title: string }
   | { kind: 'edit'; id: string; change: Change }
+  | { kind: 'confirmTaskEdits'; id: string; scope: EditScope; changes: Change[]; repeat?: RepeatEdit; reminders?: TaskReminderPreferences; subtasks: SubtaskAction[] }
   | { kind: 'setCompleted'; id: string; completed: boolean }
   | ({ kind: 'saveCategory' } & Category)
   | { kind: 'deleteCategory'; id: string; replacement: string | null }
@@ -92,10 +102,7 @@ export type TaskAction =
   | { kind: 'trashTask'; id: string; scope: EditScope }
   | { kind: 'trashCompleted' | 'purgeTrash'; ids: string[] | null }
   | { kind: 'restoreTrash'; ids: string[] }
-  | { kind: 'saveSubtask'; taskId: string; id: string; title: string }
-  | { kind: 'setSubtaskCompleted'; taskId: string; id: string; completed: boolean }
-  | { kind: 'removeSubtask'; taskId: string; id: string }
-  | { kind: 'moveSubtask'; taskId: string; id: string; neighborId: string };
+  | SubtaskAction;
 
 export function localDay(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, '0');

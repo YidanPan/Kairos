@@ -408,9 +408,9 @@ Editable fields:
 - Allow During DND
 - Recurrence
 
-Changes must save automatically.
+Save task details, subtasks, reminders, and recurrence together when the user selects **Confirm**.
 
-Support closing the panel by clicking outside or pressing Esc.
+Cancel, close, click outside, and Esc discard unconfirmed changes.
 
 ## 5.3 Priority
 

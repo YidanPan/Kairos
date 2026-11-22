@@ -55,14 +55,14 @@ pub struct Preferences {
     sound: Sound,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 enum Rule {
     Offset { minutes: u16 },
     Custom { at: String },
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct TaskPreferences {
     overrides: bool,
@@ -173,7 +173,7 @@ fn task_settings(database: &Connection, id: &str) -> Result<TaskPreferences> {
     .map(|row| row.unwrap_or_default())
 }
 
-fn save_task(database: &Connection, id: &str, value: &TaskPreferences) -> Result<()> {
+pub(crate) fn save_task(database: &Connection, id: &str, value: &TaskPreferences) -> Result<()> {
     if value.rules.len() > 100 {
         return Err("Keep at most 100 reminders per task.".into());
     }

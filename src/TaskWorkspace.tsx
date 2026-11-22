@@ -125,7 +125,7 @@ export function TaskWorkspace({ active, greeting, startupPage = 'tasks', onOpenS
   const filterOpen = toolbarPanel === 'filter';
   const setRemindersOpen = useCallback((open: boolean) => setToolbarPanel(open ? 'reminders' : null), []);
 
-  const run = useCallback((action?: TaskAction) => {
+  const run = useCallback((action?: TaskAction, onError: (message: string) => void = setError) => {
     const result = queue.current.then(async () => {
       const next = await taskBoard(action);
       setBoard(next);
@@ -133,7 +133,7 @@ export function TaskWorkspace({ active, greeting, startupPage = 'tasks', onOpenS
       if (action) setError('');
       return true;
     }).catch((reason: unknown) => {
-      setError(typeof reason === 'string' ? reason : 'Kairos could not save or load tasks.');
+      onError(typeof reason === 'string' ? reason : 'Kairos could not save or load tasks.');
       return false;
     });
     queue.current = result.then(() => undefined);

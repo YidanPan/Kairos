@@ -114,6 +114,81 @@ fn complete(id: &str) -> Action {
 }
 
 #[test]
+fn confirming_task_edits_rolls_back_changes_when_the_repeat_rule_is_invalid() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut database = storage::open(directory.path()).unwrap();
+    create(&mut database, "parent");
+    let mut edit = serde_json::json!({
+        "kind": "confirmTaskEdits",
+        "id": "parent",
+        "scope": "this",
+        "changes": [{ "field": "title", "value": "Updated" }],
+        "repeat": { "scope": "future", "rule": { "frequency": "days", "interval": 0, "weekdays": [], "monthDay": null, "endDate": null } },
+        "reminders": { "overrides": true, "allowDuringDnd": true, "rules": [] },
+        "subtasks": [{ "kind": "saveSubtask", "taskId": "parent", "id": "a", "title": "First step" }]
+    });
+    let result = apply_on(
+        &mut database,
+        serde_json::from_value(edit.clone()).unwrap(),
+        "2026-11-21",
+    );
+    assert!(matches!(result, Err(message) if message.contains("Repeat interval")));
+    let title: String = database
+        .query_row("SELECT title FROM tasks WHERE id='parent'", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    assert_eq!(title, "Task parent");
+    assert!(subtask_states(&database, "parent").is_empty());
+    let reminders: i64 = database
+        .query_row("SELECT count(*) FROM task_alert_preferences", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    assert_eq!(reminders, 0);
+
+    edit["repeat"]["rule"]["interval"] = 2.into();
+    let result = apply_today(&mut database, serde_json::from_value(edit).unwrap());
+    assert_eq!(result.tasks[0].title, "Updated");
+    assert_eq!(result.tasks[0].recurrence.as_ref().unwrap().interval, 2);
+    assert_eq!(
+        subtask_states(&database, "parent"),
+        vec![("First step".into(), false)]
+    );
+}
+
+#[test]
+fn confirming_subtasks_checks_completion_against_the_final_list() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut database = storage::open(directory.path()).unwrap();
+    let series = start_series(&mut database);
+    add_subtask(&mut database, "first", "a", "One");
+    add_subtask(&mut database, "first", "b", "Two");
+    apply_today(
+        &mut database,
+        Action::SetSubtaskCompleted {
+            task_id: "first".into(),
+            id: "a".into(),
+            completed: true,
+        },
+    );
+    let edit = serde_json::json!({
+        "kind": "confirmTaskEdits", "id": "first", "scope": "this", "changes": [],
+        "subtasks": [
+            { "kind": "setSubtaskCompleted", "taskId": "first", "id": "b", "completed": true },
+            { "kind": "setSubtaskCompleted", "taskId": "first", "id": "a", "completed": false }
+        ]
+    });
+    let result = apply_today(&mut database, serde_json::from_value(edit).unwrap());
+    assert_eq!(active_occurrence(&result, &series).id, "first");
+    assert_eq!(completed_count(&database), 0);
+    assert_eq!(
+        subtask_states(&database, "first"),
+        vec![("One".into(), false), ("Two".into(), true)]
+    );
+}
+
+#[test]
 fn final_subtask_completes_parent_and_restore_preserves_children() {
     let directory = tempfile::tempdir().unwrap();
     let mut database = storage::open(directory.path()).unwrap();

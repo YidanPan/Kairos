@@ -2,20 +2,17 @@ import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { Modal } from './TaskModal';
-import type { Task } from './taskModel';
+import type { ReminderRule as Rule, Task, TaskReminderPreferences as TaskPreferences } from './taskModel';
 
 type Quiet = 'off' | 'silent' | 'suppress';
 type Sound = 'system' | 'silent' | 'custom';
-type Rule = { kind: 'offset'; minutes: number } | { kind: 'custom'; at: string };
 type Period = { days: number[]; start: string; end: string; mode: Quiet };
 type Preferences = { manualDnd: Quiet; periods: Period[]; sound: Sound };
-type TaskPreferences = { overrides: boolean; allowDuringDnd: boolean; rules: Rule[] };
 type Notice = { id: number; taskId: string; title: string; deadline: string | null; createdAt: number; firstDueAt: number; count: number; nativeStatus: 'pending' | 'accepted' | 'unavailable' };
 type State = { preferences: Preferences; task: TaskPreferences; categoryOffsets: number[]; notices: Notice[]; hasCustomSound: boolean };
 type NotificationAction = { kind: 'open'; id: string } | { kind: 'snooze'; id: number };
 type Action =
   | { kind: 'savePreferences'; preferences: Preferences }
-  | { kind: 'saveTask'; id: string; preferences: TaskPreferences }
   | { kind: 'saveCategory'; id: string; offsets: number[] }
   | { kind: 'importSound'; bytes: number[] }
   | { kind: 'previewSound' }
@@ -37,59 +34,53 @@ function OffsetChoices({ values, onChange }: { values: number[]; onChange: (valu
     onChange={(event) => onChange(event.target.checked ? [...values, value] : values.filter((item) => item !== value))} />{label}</label>)}</div>;
 }
 
-function TaskRules({ task, initial, inherited }: { task: Task; initial: TaskPreferences; inherited: number[] }) {
-  const [draft, setDraft] = useState(initial);
+function TaskRules({ task, draft, inherited, onChange }: {
+  task: Task; draft: TaskPreferences; inherited: number[]; onChange: (draft: TaskPreferences) => void;
+}) {
   const [custom, setCustom] = useState('');
-  const [status, setStatus] = useState('');
-  const [busy, setBusy] = useState(false);
   const customRules = draft.rules.filter((rule) => rule.kind === 'custom');
   const taskOffsets = draft.rules.flatMap((rule) => rule.kind === 'offset' ? [rule.minutes] : []);
 
-  async function save() {
-    setBusy(true);
-    setStatus('');
-    try { await request({ kind: 'saveTask', id: task.id, preferences: draft }, task.id); setStatus('Saved.'); }
-    catch (error) { setStatus(errorText(error)); }
-    finally { setBusy(false); }
-  }
-
   return <div className="task-form reminder-form">
-    <label>Reminder source<select value={draft.overrides ? 'custom' : 'category'} onChange={(event) => setDraft({ ...draft, overrides: event.target.value === 'custom' })}>
+    <label>Reminder source<select value={draft.overrides ? 'custom' : 'category'} onChange={(event) => onChange({ ...draft, overrides: event.target.value === 'custom' })}>
       <option value="category">Use category defaults</option><option value="custom">Set task reminders</option>
     </select></label>
     {!draft.overrides && <p className="task-hint">{inherited.length ? offsets.filter(([value]) => inherited.includes(value)).map(([, name]) => name).join(' · ') : 'No inherited reminders.'}</p>}
     {draft.overrides && <>
-      <OffsetChoices values={taskOffsets} onChange={(values) => setDraft({ ...draft, rules: [...customRules, ...values.map((minutes): Rule => ({ kind: 'offset', minutes }))] })} />
+      <OffsetChoices values={taskOffsets} onChange={(values) => onChange({ ...draft, rules: [...customRules, ...values.map((minutes): Rule => ({ kind: 'offset', minutes }))] })} />
       {!task.dueDate && taskOffsets.length > 0 && <p className="task-hint">Deadline reminders wait for a due date.</p>}
       {customRules.map(({ at }) => <div className="task-actions" key={at}><time>{at.replace('T', ' ')}</time>
-        <button type="button" aria-label={'Remove reminder ' + at} onClick={() => setDraft({ ...draft, rules: draft.rules.filter((rule) => rule.kind !== 'custom' || rule.at !== at) })}>Remove</button></div>)}
+        <button type="button" aria-label={'Remove reminder ' + at} onClick={() => onChange({ ...draft, rules: draft.rules.filter((rule) => rule.kind !== 'custom' || rule.at !== at) })}>Remove</button></div>)}
       <label>Custom reminder<input type="datetime-local" value={custom} onChange={(event) => setCustom(event.target.value)} /></label>
       <button type="button" disabled={!custom || customRules.some((rule) => rule.at === custom)} onClick={() => {
-        setDraft({ ...draft, rules: [...draft.rules, { kind: 'custom', at: custom }] });
+        onChange({ ...draft, rules: [...draft.rules, { kind: 'custom', at: custom }] });
         setCustom('');
       }}>Add custom reminder</button>
     </>}
     <label className="inline-check"><input type="checkbox" checked={draft.allowDuringDnd}
-      onChange={(event) => setDraft({ ...draft, allowDuringDnd: event.target.checked })} />Allow During DND</label>
-    <button type="button" disabled={busy} onClick={() => void save()}>Save reminders</button>
-    {status && <p className="task-hint" role="status">{status}</p>}
+      onChange={(event) => onChange({ ...draft, allowDuringDnd: event.target.checked })} />Allow During DND</label>
   </div>;
 }
 
-export function TaskReminders({ task }: { task: Task }) {
+export function TaskReminders({ task, draft, onChange }: {
+  task: Task; draft: TaskPreferences | undefined; onChange: (draft: TaskPreferences) => void;
+}) {
   const [state, setState] = useState<State>();
   const [problem, setProblem] = useState('');
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (!open) return;
     let active = true;
-    void request(undefined, task.id, task.categoryId ?? undefined).then((value) => { if (active) setState(value); },
+    void request(undefined, task.id, task.categoryId ?? undefined).then((value) => {
+      if (active) { setState(value); setProblem(''); }
+    },
       (error: unknown) => { if (active) setProblem(errorText(error)); });
     return () => { active = false; };
   }, [open, task.id, task.categoryId]);
 
   return <details className="task-extras" onToggle={(event) => setOpen(event.currentTarget.open)}><summary>Reminders</summary>
-    {open && (state ? <TaskRules task={task} initial={state.task} inherited={state.categoryOffsets} /> : <p role="status">{problem || 'Loading reminders…'}</p>)}
+    {state && <TaskRules task={task} draft={draft ?? state.task} inherited={state.categoryOffsets} onChange={onChange} />}
+    {open && (!state || problem) && <p role="status">{problem || 'Loading reminders…'}</p>}
   </details>;
 }
 

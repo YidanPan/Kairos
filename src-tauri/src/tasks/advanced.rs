@@ -14,6 +14,23 @@ pub enum Scope {
     Entire,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskEdits {
+    id: String,
+    scope: Scope,
+    changes: Vec<Change>,
+    repeat: Option<RepeatEdit>,
+    reminders: Option<crate::reminders::TaskPreferences>,
+    subtasks: Vec<Action>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RepeatEdit {
+    rule: Option<Rule>,
+    scope: Scope,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct Subtask {
@@ -320,20 +337,25 @@ fn reanchor(
     series: &str,
     ids: Vec<String>,
     value: Option<String>,
+    pending_rule: Option<&Rule>,
 ) -> BoardResult<()> {
     let start = value
         .as_deref()
         .and_then(date)
         .ok_or_else(|| "Choose a scheduled date for the recurrence.".to_owned())?;
-    let rule = tx
-        .query_row(
-            "SELECT rule FROM recurrence_series WHERE id=?1",
-            [series],
-            |row| read_rule(row, 0),
-        )
-        .map_err(db_error)?;
-    rule.ok_or_else(|| "The recurrence rule is missing.".to_owned())?
-        .validate(start)?;
+    if let Some(rule) = pending_rule {
+        rule.validate(start)?;
+    } else {
+        let rule = tx
+            .query_row(
+                "SELECT rule FROM recurrence_series WHERE id=?1",
+                [series],
+                |row| read_rule(row, 0),
+            )
+            .map_err(db_error)?;
+        rule.ok_or_else(|| "The recurrence rule is missing.".to_owned())?
+            .validate(start)?;
+    }
     let offset: Option<i64> = tx
         .query_row(
             "SELECT due_offset FROM recurrence_series WHERE id=?1",
@@ -363,6 +385,16 @@ pub(super) fn edit_occurrence(
     change: Change,
     scope: Scope,
 ) -> BoardResult<()> {
+    edit_with_rule(tx, id, change, scope, None)
+}
+
+fn edit_with_rule(
+    tx: &Transaction<'_>,
+    id: &str,
+    change: Change,
+    scope: Scope,
+    pending_rule: Option<&Rule>,
+) -> BoardResult<()> {
     let entry = occurrence(tx, id)?;
     if entry.trashed || entry.skipped {
         return Err("This archived task is read-only.".into());
@@ -385,7 +417,9 @@ pub(super) fn edit_occurrence(
         Change::Category(id) => ("category_id", id.clone()),
         Change::Priority(priority) => ("priority", Some(priority.as_str().to_owned())),
         Change::Notes(notes) => ("notes", Some(notes.clone())),
-        Change::ScheduledDate(value) => return reanchor(tx, series, ids, value.clone()),
+        Change::ScheduledDate(value) => {
+            return reanchor(tx, series, ids, value.clone(), pending_rule)
+        }
         Change::Deadline(deadline) => {
             // Use the edited occurrence's displayed schedule, then apply the same offset from each task's own schedule.
             edit(tx, id, change.clone())?;
@@ -428,6 +462,73 @@ pub(super) fn edit_occurrence(
     Ok(())
 }
 
+fn confirm_edits(tx: &Transaction<'_>, edits: TaskEdits, today: NaiveDate) -> BoardResult<()> {
+    let TaskEdits {
+        id,
+        scope,
+        changes,
+        repeat,
+        reminders,
+        mut subtasks,
+    } = edits;
+    let entry = occurrence(tx, &id)?;
+    if entry.trashed || entry.skipped {
+        return Err("This archived task is read-only.".into());
+    }
+    let removing_repeat = repeat.as_ref().is_some_and(|edit| edit.rule.is_none());
+    let pending_rule = repeat.as_ref().and_then(|edit| edit.rule.as_ref());
+    let mut clear_schedule = false;
+    for change in changes {
+        if removing_repeat && matches!(change, Change::ScheduledDate(None)) {
+            clear_schedule = true;
+        } else {
+            edit_with_rule(tx, &id, change, scope, pending_rule)?;
+        }
+    }
+    if let Some(preferences) = reminders {
+        entry.require_active()?;
+        crate::reminders::save_task(tx, &id, &preferences)?;
+    }
+
+    // Apply the final list and any reopened subtasks before marking items complete.
+    // The last completion can complete the parent and create the next occurrence.
+    subtasks.sort_by_key(|action| match action {
+        Action::SetSubtaskCompleted {
+            completed: false, ..
+        } => 1,
+        Action::SetSubtaskCompleted {
+            completed: true, ..
+        } => 2,
+        _ => 0,
+    });
+    let mut completions = Vec::new();
+    for action in subtasks {
+        match &action {
+            Action::SaveSubtask { task_id, .. }
+            | Action::RemoveSubtask { task_id, .. }
+            | Action::MoveSubtask { task_id, .. }
+                if task_id == &id =>
+            {
+                apply(tx, action, today)?
+            }
+            Action::SetSubtaskCompleted { task_id, .. } if task_id == &id => {
+                completions.push(action)
+            }
+            _ => return Err("Invalid subtask edit for this task.".into()),
+        }
+    }
+    if let Some(RepeatEdit { rule, scope }) = repeat {
+        set_recurrence(tx, &id, rule, scope, today)?;
+    }
+    if clear_schedule {
+        edit_occurrence(tx, &id, Change::ScheduledDate(None), Scope::This)?;
+    }
+    for action in completions {
+        apply(tx, action, today)?;
+    }
+    Ok(())
+}
+
 fn trash_task(tx: &Transaction<'_>, id: &str, scope: Scope, today: NaiveDate) -> BoardResult<()> {
     let entry = occurrence(tx, id)?;
     if entry.trashed {
@@ -459,6 +560,7 @@ fn trash_task(tx: &Transaction<'_>, id: &str, scope: Scope, today: NaiveDate) ->
 
 pub(super) fn apply(tx: &Transaction<'_>, action: Action, today: NaiveDate) -> BoardResult<()> {
     match action {
+        Action::ConfirmTaskEdits(edits) => confirm_edits(tx, edits, today)?,
         Action::EditOccurrence { id, change, scope } => edit_occurrence(tx, &id, change, scope)?,
         Action::SaveRecurrence { id, rule, scope } => set_recurrence(tx, &id, rule, scope, today)?,
         Action::SkipOccurrence { id } => {

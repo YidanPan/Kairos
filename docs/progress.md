@@ -79,3 +79,8 @@ Status **PASS** for Phases 3 and 4.
 - Tests cover damaged-file rejection, transaction rollback on a failed restore, the 30-file rotation, duplicate task and active recurrence IDs, and remapping snooze receipts when merging reminder history.
 - Verified that the NSIS installer registered a Start menu shortcut and login startup. An install over the existing copy saved a checked snapshot and kept startup disabled. Uninstallation removed the executable and preserved the SQLite database byte for byte.
 - ESLint, TypeScript, Rust formatting, 11 frontend tests, and 31 Rust tests passed. Built the x64 NSIS installer for Kairos v1.0.0 locally. Subsequent tests covered the tray commands, sign-in startup, and the notification body's Snooze path. The expanded Open Task button, Windows sleep/wake, and the previously deferred dual-display checks remain open.
+
+## Task detail confirmation
+
+- An isolated Windows build verified that Confirm saves task fields, subtasks, reminders, and recurrence together. The saved values reloaded after relaunch. Cancel, close, Esc, and clicking outside left the database unchanged.
+- An invalid repeat end date kept the editor open with its draft and rolled back the database changes. All 36 Rust tests and 11 frontend tests passed, along with ESLint, TypeScript, and Clippy.

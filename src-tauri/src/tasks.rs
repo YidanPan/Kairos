@@ -10,7 +10,7 @@ use crate::{backup, storage};
 mod advanced;
 mod recurrence;
 mod statistics;
-use advanced::{Scope, Subtask};
+use advanced::{Scope, Subtask, TaskEdits};
 use recurrence::Rule;
 
 #[cfg(test)]
@@ -128,6 +128,7 @@ pub enum Action {
         id: String,
         change: Change,
     },
+    ConfirmTaskEdits(TaskEdits),
     SetCompleted {
         id: String,
         completed: bool,

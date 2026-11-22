@@ -10,6 +10,8 @@ Close hides Kairos to the system tray so reminders can keep running. Use the tra
 
 Click a Windows reminder to open its options in Kairos. Use **Open Task** to view the task or choose a snooze time from the reminder panel.
 
+In **Task details**, select **Confirm** to save changes to the task, its subtasks, reminders, and repeat rule. Select **Cancel** or close the dialog to discard those edits.
+
 | Global shortcut | Action |
 | --- | --- |
 | `Ctrl+Alt+Shift+T` | Show or hide Kairos |

@@ -137,6 +137,18 @@ button:disabled { cursor: default; opacity: .6; }
 .appearance-settings select { min-width: 126px; }
 .appearance-settings option { background: var(--surface); }
 
+.system-settings fieldset { display: grid; gap: 6px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.system-settings input[type='checkbox'] { accent-color: var(--text); }
+.system-settings .smart-preferences { display: grid; gap: 5px; margin: 3px 0; }
+.system-settings .smart-preferences label { display: grid; justify-content: stretch; }
+.system-settings .smart-preferences p { margin: 0; }
+.system-settings .smart-preferences button { justify-self: start; }
+.integration-shortcuts { font-size: .76rem; }
+.integration-shortcuts summary { cursor: pointer; }
+.integration-shortcuts dl { display: grid; gap: 4px; margin: 6px 0 0; }
+.integration-shortcuts dl div { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; }
+.integration-shortcuts dd { margin: 0; }
+
 .task-board-body { padding: 0 18px 16px; }
 .task-workspace { min-width: 0; }
 .task-toolbar { position: sticky; top: 0; z-index: 1; background: var(--surface); padding: 12px 0 8px; }

@@ -25,3 +25,7 @@ On Windows, the installed identifier names the WinRT toast sender. The inbox pre
 Migration 006 gives completion records a stable parent ID and archives past planned dates when a task is permanently deleted. The archive stores IDs and dates. The task board calculates daily and Monday–Sunday counts from active completion records in local time. The daily total pairs those completions with the remaining tasks in Today.
 
 Streaks start on the first recorded activity date. Missed plans remain on their original days after automatic rescheduling. A day with only skipped occurrences and the selected weekly rest days are neutral. An unfinished plan breaks the streak after local midnight. Changing rest days recalculates streaks from the same completion history.
+
+The `behavior` setting stores the window mode, startup page, and Smart mode executable whitelist. Smart mode checks the foreground window against its monitor bounds and updates the panel's topmost state when it changes. Outside fullscreen, an empty whitelist admits all foreground applications. A configured whitelist matches executable filenames without regard to case.
+
+The Windows runtime uses Tauri 2 plugins for global shortcuts, per-user login registration, and single-instance handling. Tray restoration and the global recovery shortcut clear native click-through. Click-through also resets whenever Kairos starts. Hiding the panel leaves the reminder worker running.

@@ -9,6 +9,7 @@
 | 4 · Advanced task features | Passed. Subtasks, recurrence, completed history, and Trash were verified in an isolated Windows desktop profile. |
 | 5 · Notifications | Implemented. The scheduler, inbox, WAV preview, and Windows toast display passed checks. Native button activation and actual suspend/resume verification are pending. |
 | 6 · Statistics and search | Passed Phase 6 checks. Group 3 remains open for the two outstanding Phase 5 Windows checks. |
+| 7 · System integration | Implemented and tested on the local branch. Windows sign-in and direct interaction with the system tray menu still need a manual check. |
 
 ## Phase 1 verification
 
@@ -55,3 +56,11 @@ Status **PASS** for Phases 3 and 4.
 - The isolated Windows build verified Ctrl+F, title and notes matches grouped by Today, Upcoming, and No Date, exclusion of archived tasks, all five filters together, and clearing filters while retaining the search.
 - Verified the More menu, Today progress, a Monday–Sunday chart, and saving two weekly rest days. Relaunching preserved the rest days and both parent completions, including a parent completed through its final subtask.
 - All 11 frontend tests and 28 Rust tests passed. Tests cover automatic carry-forward, skipped occurrences, empty days, rest days, restoring tasks, and retaining statistics after permanent deletion. ESLint, TypeScript, Rust formatting, and the optimized Windows build passed.
+
+## Phase 7 verification
+
+- Verified Desktop and Always on Top modes, Smart mode's whitelist, and dropping and restoring topmost state when a foreground Windows application entered and left fullscreen.
+- From a second Windows app, verified the global New Task, Search, Settings, Show/Hide, and Restore Mouse Interaction shortcuts. The initially chosen settings chord was already registered. `Ctrl+Alt+Shift+S` registered and opened Settings successfully.
+- Verified that the close button hid the panel while Windows accepted a background reminder. Starting a second copy exited the new process and restored the original window. Restarting preserved the selected startup page and window preferences, and reset click-through.
+- Verified that the launch-at-login setting created and removed the correct current-user registry entry for the test executable. Signing out and back in and directly operating the system tray menu still need Windows desktop verification.
+- ESLint, TypeScript, Rust formatting, 11 frontend tests, 28 Rust tests, and the optimized Windows build passed.

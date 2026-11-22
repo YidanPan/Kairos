@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod integration;
 mod panel;
 mod reminders;
 mod storage;
@@ -31,10 +32,20 @@ async fn storage_info(app: tauri::AppHandle) -> Result<StorageInfo, String> {
 }
 
 fn main() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(windows)]
+    let builder = builder
+        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
+            if let Err(error) = integration::show(app, None) {
+                eprintln!("Could not restore Kairos: {error}");
+            }
+        }))
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build());
+    builder
         .setup(|app| {
             reminders::identify(app.handle());
             panel::setup(app)?;
+            integration::setup(app.handle())?;
             reminders::start(app.handle().clone());
             Ok(())
         })
@@ -48,6 +59,10 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             storage_info,
+            integration::integration_status,
+            integration::save_behavior,
+            integration::set_click_through,
+            integration::set_launch_at_login,
             panel::load_panel_preferences,
             panel::save_panel_preferences,
             panel::set_panel_backdrop,

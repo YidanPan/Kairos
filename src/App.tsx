@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { getStorageInfo, isDesktop } from './desktop';
+import { getStorageInfo, integrationStatus, isDesktop } from './desktop';
+import type { Integration } from './desktop';
+import { SystemSettings } from './SystemSettings';
 import { TaskWorkspace } from './TaskWorkspace';
 import { connectPanel, defaultAppearance, resizeHandles, setBackdrop, startPanelGesture } from './panel';
 import type { Appearance, Panel, Theme, Transparency } from './panel';
@@ -19,6 +21,7 @@ export function App() {
   const [panel, setPanel] = useState<Panel>();
   const [appearance, setAppearance] = useState(defaultAppearance);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [integration, setIntegration] = useState<Integration | null>();
   const [windowError, setWindowError] = useState('');
   const [backdrop, setBackdropActive] = useState(false);
   const [systemDark, setSystemDark] = useState(() => matchMedia('(prefers-color-scheme: dark)').matches);
@@ -30,6 +33,10 @@ export function App() {
 
   function reportWindowError(error: unknown) {
     setWindowError(error instanceof Error ? error.message : String(error));
+  }
+
+  function updateIntegration(update: Partial<Integration>) {
+    setIntegration((current) => current ? { ...current, ...update } : current);
   }
 
   useEffect(() => {
@@ -44,6 +51,8 @@ export function App() {
     const lifetime = new AbortController();
     const releaseTray = listen('kairos-open-settings', () => setSettingsOpen(true));
     void releaseTray.catch(reportWindowError);
+    const releaseInteraction = listen<boolean>('kairos-click-through', (event) => updateIntegration({ clickThrough: event.payload }));
+    void releaseInteraction.catch(reportWindowError);
     void connectPanel(lifetime.signal, reportWindowError).then((controller) => {
       if (controller && !lifetime.signal.aborted) {
         setAppearance(controller.appearance);
@@ -53,7 +62,25 @@ export function App() {
     return () => {
       lifetime.abort();
       void releaseTray.then((unlisten) => unlisten(), () => undefined);
+      void releaseInteraction.then((unlisten) => unlisten(), () => undefined);
     };
+  }, []);
+
+  useEffect(() => {
+    if (!isDesktop) return;
+    let active = true;
+    void integrationStatus().then(
+      (status) => { if (active) setIntegration(status); },
+      (error: unknown) => { if (active) { setIntegration(null); reportWindowError(error); } },
+    );
+    const keyboard = (event: KeyboardEvent) => {
+      if (event.ctrlKey && !event.altKey && !event.shiftKey && event.key === ',' && !document.querySelector('dialog[open]')) {
+        event.preventDefault();
+        setSettingsOpen(true);
+      }
+    };
+    window.addEventListener('keydown', keyboard);
+    return () => { active = false; window.removeEventListener('keydown', keyboard); };
   }, []);
 
   useEffect(() => {
@@ -166,7 +193,8 @@ export function App() {
               </select>
             </label>
           </section>
-          {isDesktop && storage.status === 'ready' && <TaskWorkspace onOpenSettings={() => setSettingsOpen(true)} />}
+          {settingsOpen && integration && <SystemSettings system={integration} onUpdate={updateIntegration} />}
+          {isDesktop && storage.status === 'ready' && integration !== undefined && <TaskWorkspace startupPage={integration?.preferences.startupPage} onOpenSettings={() => setSettingsOpen(true)} />}
         </div>
       </div>
       {panelWindow && resizeHandles.map((direction) => (

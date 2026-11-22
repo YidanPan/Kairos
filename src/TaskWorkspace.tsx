@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { taskBoard } from './desktop';
+import type { StartupPage } from './desktop';
 import { CategoryReminders, ReminderHub } from './ReminderControls';
 import { CategoryOptions, TaskDetails } from './TaskDetails';
 import { Modal } from './TaskModal';
@@ -99,7 +100,7 @@ function TaskRow({ task, category, subtasks, now, manual, onOpen, onToggle, onDr
   </li>;
 }
 
-export function TaskWorkspace({ onOpenSettings }: { onOpenSettings: () => void }) {
+export function TaskWorkspace({ startupPage = 'tasks', onOpenSettings }: { startupPage?: StartupPage; onOpenSettings: () => void }) {
   const [board, setBoard] = useState<Board>();
   const [now, setNow] = useState(() => new Date());
   const [error, setError] = useState('');
@@ -107,9 +108,9 @@ export function TaskWorkspace({ onOpenSettings }: { onOpenSettings: () => void }
   const [newTitle, setNewTitle] = useState('');
   const [saving, setSaving] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
-  const [statisticsOpen, setStatisticsOpen] = useState(false);
+  const [statisticsOpen, setStatisticsOpen] = useState(startupPage === 'statistics');
   const [detailId, setDetailId] = useState<string>();
-  const [view, setView] = useState<'tasks' | HistoryKind>('tasks');
+  const [view, setView] = useState<'tasks' | HistoryKind>(startupPage === 'completed' ? 'completed' : 'tasks');
   const [filters, setFilters] = useState(emptyFilters);
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -157,23 +158,29 @@ export function TaskWorkspace({ onOpenSettings }: { onOpenSettings: () => void }
   }, [searchOpen, view]);
 
   useEffect(() => {
-    const open = (event: KeyboardEvent) => {
-      if (!event.ctrlKey || document.querySelector('dialog[open]')) return;
-      const key = event.key.toLowerCase();
-      if (key === 'n') {
-        event.preventDefault();
-        setQuickAdd(true);
-        addInput.current?.focus();
-      }
-      if (key === 'f') {
-        event.preventDefault();
-        setView('tasks');
-        setSearchOpen(true);
-        searchInput.current?.focus();
-      }
+    const newTask = () => {
+      setQuickAdd(true);
+      addInput.current?.focus();
     };
+    const search = () => {
+      setView('tasks');
+      setSearchOpen(true);
+      searchInput.current?.focus();
+    };
+    const open = (event: KeyboardEvent) => {
+      if (!event.ctrlKey || event.altKey || event.shiftKey || document.querySelector('dialog[open]')) return;
+      const key = event.key.toLowerCase();
+      if (key === 'n' || key === 'f') event.preventDefault();
+      if (key === 'n') newTask();
+      if (key === 'f') search();
+    };
+    const releaseNew = listen('kairos-new-task', newTask);
+    const releaseSearch = listen('kairos-search', search);
     window.addEventListener('keydown', open);
-    return () => window.removeEventListener('keydown', open);
+    return () => {
+      window.removeEventListener('keydown', open);
+      for (const registration of [releaseNew, releaseSearch]) void registration.then((unlisten) => unlisten(), () => undefined);
+    };
   }, []);
 
   async function add(event: FormEvent) {

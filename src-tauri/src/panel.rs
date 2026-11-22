@@ -2,39 +2,57 @@ use rusqlite::OptionalExtension;
 use serde_json::Value;
 use tauri::{
     menu::{Menu, MenuItem},
-    tray::TrayIconBuilder,
-    App, AppHandle, Emitter, Manager, WebviewWindow,
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    App, AppHandle, Manager, WebviewWindow,
 };
 
-use crate::storage;
+use crate::{integration, storage};
 
 type SetupError = Box<dyn std::error::Error>;
 
 pub fn setup(app: &mut App) -> Result<(), SetupError> {
     let show = MenuItem::with_id(app, "show", "Show Window", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
+    let restore = MenuItem::with_id(
+        app,
+        "restore-interaction",
+        "Restore Mouse Interaction",
+        true,
+        None::<&str>,
+    )?;
     let exit = MenuItem::with_id(app, "exit", "Exit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&show, &settings, &exit])?;
+    let menu = Menu::with_items(app, &[&show, &settings, &restore, &exit])?;
     let mut tray = TrayIconBuilder::with_id("kairos")
         .menu(&menu)
+        .show_menu_on_left_click(false)
         .tooltip("Kairos");
     if let Some(icon) = app.default_window_icon() {
         tray = tray.icon(icon.clone());
     }
     tray.on_menu_event(|app, event| {
-        if event.id().as_ref() == "exit" {
-            app.exit(0);
-        } else if let Some(window) = app.get_webview_window("main") {
-            let show = || -> tauri::Result<()> {
-                window.show()?;
-                window.unminimize()?;
-                window.set_focus()?;
-                if event.id().as_ref() == "settings" {
-                    window.emit("kairos-open-settings", ())?;
-                }
-                Ok(())
-            };
-            if let Err(error) = show() {
+        let result = match event.id().as_ref() {
+            "exit" => {
+                app.exit(0);
+                return;
+            }
+            "settings" => integration::show(app, Some("kairos-open-settings")),
+            "show" | "restore-interaction" => integration::show(app, None),
+            _ => return,
+        };
+        if let Err(error) = result {
+            eprintln!("Could not show Kairos: {error}");
+        }
+    })
+    .on_tray_icon_event(|tray, event| {
+        if matches!(
+            event,
+            TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            }
+        ) {
+            if let Err(error) = integration::show(tray.app_handle(), None) {
                 eprintln!("Could not show Kairos: {error}");
             }
         }

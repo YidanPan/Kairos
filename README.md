@@ -4,6 +4,18 @@
 
 Kairos is a minimalist, local-first personal task manager for Windows 11. It is designed as a compact desktop panel for planning tasks, tracking deadlines, and keeping routines.
 
+## Windows controls
+
+Close hides Kairos to the system tray so reminders can keep running. Use the tray to reopen the panel, restore mouse interaction after enabling click-through, or exit. **Settings → Behavior** contains launch at login, window modes, and shortcut registration status.
+
+| Global shortcut | Action |
+| --- | --- |
+| `Ctrl+Alt+Shift+T` | Show or hide Kairos |
+| `Ctrl+Alt+Shift+N` | Quick Add |
+| `Ctrl+Alt+Shift+F` | Search |
+| `Ctrl+Alt+Shift+S` | Open Settings |
+| `Ctrl+Alt+Shift+R` | Restore mouse interaction |
+
 ## Project layout
 
 | Path | Purpose |

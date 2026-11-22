@@ -1,5 +1,7 @@
 # Kairos
 
+[简体中文](README.zh-CN.md)
+
 **At your own pace.**
 
 Kairos is a local-first personal task manager for Windows 11. Its compact desktop panel keeps today's tasks within reach. Give a task a scheduled date to decide when to work on it, and a deadline to mark when it needs to be finished.

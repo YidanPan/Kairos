@@ -29,9 +29,9 @@ Kairos 是一款面向 Windows 11 的个人任务管理器。紧凑的桌面面�
 
 ### 安装预览版
 
-如果你已收到 **Kairos_1.0.0_x64-setup.exe**，可以在 x64 架构的 Windows 11 电脑上运行它，安装后从开始菜单打开 **Kairos**。安装包目前未签名，Windows 可能显示 SmartScreen 提示。Windows 11 通常自带 WebView2，缺少时安装程序会联网下载。ARM64 兼容性待实机验证。
+从发布页下载 **Kairos_1.0.0_x64-setup.exe**，在 Windows 11 x64 电脑上运行，安装后从开始菜单打开 **Kairos**。 [下载 Windows 预览版](https://github.com/YidanPan/Kairos/releases/tag/v1.0.0-preview.1)
 
-预览安装包单独分发。正式发布的构建可以在 [GitHub Releases](https://github.com/YidanPan/Kairos/releases) 查看。
+安装包目前未签名，Windows 可能显示 SmartScreen 提示。Windows 11 通常自带 WebView2，缺少时安装程序会联网下载。ARM64 兼容性待实机验证。
 
 ## 快速上手
 

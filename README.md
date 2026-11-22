@@ -29,9 +29,9 @@ The screenshots use sample data in the Windows 1.0.0 preview. The default branch
 
 ### Install a preview build
 
-If you received **Kairos_1.0.0_x64-setup.exe**, run it on an x64 Windows 11 PC and open **Kairos** from the Start menu. The installer is unsigned, so Windows may display a SmartScreen prompt. Windows 11 normally includes WebView2. The installer downloads it if the runtime is missing. ARM64 has yet to be verified on hardware.
+Download **Kairos_1.0.0_x64-setup.exe** from the release page, run it on an x64 Windows 11 PC, then open **Kairos** from the Start menu. [Download the Windows preview](https://github.com/YidanPan/Kairos/releases/tag/v1.0.0-preview.1)
 
-Preview installers are shared separately. See [GitHub Releases](https://github.com/YidanPan/Kairos/releases) for published builds.
+The installer is unsigned, so Windows may display a SmartScreen prompt. Windows 11 normally includes WebView2. The installer downloads it if the runtime is missing. ARM64 has yet to be verified on hardware.
 
 ## Getting started
 

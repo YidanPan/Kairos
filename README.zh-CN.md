@@ -84,3 +84,7 @@ npm run tauri build -- --no-bundle
 - [产品需求文档](PRD.md)
 - [开发流程](DEVELOPMENT_RULES.md)
 - [问题反馈](https://github.com/YidanPan/Kairos/issues)
+
+## 开源许可证
+
+Kairos 采用 [MIT 许可证](LICENSE)。

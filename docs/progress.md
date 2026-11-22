@@ -48,6 +48,7 @@ Status **PASS** for Phases 3 and 4.
 - All nine frontend tests and 25 Rust tests passed. The optimized Windows build and the isolated NSIS installation succeeded.
 - The isolated Windows build verified DND deferral and aggregation, persisted snooze, inbox actions, and WAV playback. Windows accepted and displayed a native toast with the installed application's identity. The app reports Windows delivery failures in its durable reminder inbox.
 - A time-jump test verified missed-reminder recovery. Actual hardware resume and the Windows notification action buttons still need verification.
+- Suspended the isolated Kairos process on Windows 11 before two reminders became due, then resumed it. Windows accepted one notification for both reminders. After two more scheduler polls, the database still held exactly two receipts, the future reminder remained scheduled, and the completed and trashed controls produced no notifications.
 
 ## Phase 6 verification
 

@@ -9,7 +9,7 @@
 | 4 · Advanced task features | Passed. Subtasks, recurrence, completed history, and Trash were verified in an isolated Windows desktop profile. |
 | 5 · Notifications | Implemented. The scheduler, inbox, WAV preview, Windows toast display, native Complete, and opening reminder options from a toast passed checks. A direct Open Task button click and actual suspend/resume verification are pending. |
 | 6 · Statistics and search | Passed Phase 6 checks. Group 3 remains open for the two outstanding Phase 5 Windows checks. |
-| 7 · System integration | Implemented and tested on the local branch. Tray menu commands passed the native Windows integration test. Actual Windows sign-in still needs a manual check. |
+| 7 · System integration | Verified on Windows. Tray menu commands passed the native Windows integration test, and Kairos started automatically after a fresh sign-in. |
 | 8 · Backup and release | Implemented. The isolated Windows installation, backup, restore, upgrade and uninstall checks passed. The v1.0.0 installer is built locally. |
 
 ## Phase 1 verification
@@ -68,7 +68,8 @@ Status **PASS** for Phases 3 and 4.
 - From a second Windows app, verified the global New Task, Search, Settings, Show/Hide, and Restore Mouse Interaction shortcuts. The initially chosen settings chord was already registered. `Ctrl+Alt+Shift+S` registered and opened Settings successfully.
 - Verified that the close button hid the panel while Windows accepted a background reminder. Starting a second copy exited the new process and restored the original window. Restarting preserved the selected startup page and window preferences, and reset click-through.
 - Verified that the launch-at-login setting created and removed the correct current-user registry entry for the test executable.
-- On the isolated v1.0.0 installation, Windows reported a registered notification area icon. The automated Windows test opened the app's native tray menu and dispatched its actual menu item IDs. Show Window restored the hidden panel, Restore Mouse Interaction disabled click-through, and Exit terminated the process cleanly with exit code 0. Signing out and back in remains pending.
+- On the isolated v1.0.0 installation, Windows reported a registered notification area icon. The automated Windows test opened the app's native tray menu and dispatched its actual menu item IDs. Show Window restored the hidden panel, Restore Mouse Interaction disabled click-through, and Exit terminated the process cleanly with exit code 0.
+- After a fresh Windows sign-in, Explorer launched the installed Kairos acceptance executable in the new session, and Kairos displayed its main window. The observed executable matched the registered login startup entry.
 - ESLint, TypeScript, Rust formatting, 11 frontend tests, 28 Rust tests, and the optimized Windows build passed.
 
 ## Phase 8 verification
@@ -77,4 +78,4 @@ Status **PASS** for Phases 3 and 4.
 - Verified safety snapshots before Trash purge, Merge, and Replace. Merge restored a missing task and its subtask while preserving a locally edited task. Replace restored the historical titles and custom WAV and removed the task added afterward. The restored data was still present after relaunch.
 - Tests cover damaged-file rejection, transaction rollback on a failed restore, the 30-file rotation, duplicate task and active recurrence IDs, and remapping snooze receipts when merging reminder history.
 - Verified that the NSIS installer registered a Start menu shortcut and login startup. An install over the existing copy saved a checked snapshot and kept startup disabled. Uninstallation removed the executable and preserved the SQLite database byte for byte.
-- ESLint, TypeScript, Rust formatting, 11 frontend tests, and 31 Rust tests passed. Built the x64 NSIS installer for Kairos v1.0.0 locally. Subsequent tests covered the tray commands and the notification body's Snooze path. The expanded Open Task button, Windows sleep/wake, sign-in, and the previously deferred dual-display checks remain open.
+- ESLint, TypeScript, Rust formatting, 11 frontend tests, and 31 Rust tests passed. Built the x64 NSIS installer for Kairos v1.0.0 locally. Subsequent tests covered the tray commands, sign-in startup, and the notification body's Snooze path. The expanded Open Task button, Windows sleep/wake, and the previously deferred dual-display checks remain open.

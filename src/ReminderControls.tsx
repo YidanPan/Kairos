@@ -150,11 +150,11 @@ function Settings({ data, save }: { data: State; save: (action: Action) => Promi
   </div></details>;
 }
 
-export function ReminderHub({ active, onShowTasks, openTask, completeTask }: {
-  active: boolean; onShowTasks: () => void; openTask: (id: string) => void; completeTask: (id: string) => Promise<boolean>;
+export function ReminderHub({ active, open, onOpenChange, onShowTasks, openTask, completeTask }: {
+  active: boolean; open: boolean; onOpenChange: (open: boolean) => void; onShowTasks: () => void;
+  openTask: (id: string) => void; completeTask: (id: string) => Promise<boolean>;
 }) {
   const [data, setData] = useState<State>();
-  const [open, setOpen] = useState(false);
   const [problem, setProblem] = useState('');
   const [snoozing, setSnoozing] = useState<number>();
   const [until, setUntil] = useState('');
@@ -173,14 +173,14 @@ export function ReminderHub({ active, onShowTasks, openTask, completeTask }: {
         for (const action of actions) {
           onShowTasks();
           if (action.kind === 'open') {
-            setOpen(false);
+            onOpenChange(false);
             setSnoozing(undefined);
             openTask(action.id);
           } else {
             refresh();
             setSnoozing(action.id);
             setUntil('');
-            setOpen(true);
+            onOpenChange(true);
           }
         }
       }, (error: unknown) => { if (mounted) setProblem(errorText(error)); });
@@ -188,7 +188,7 @@ export function ReminderHub({ active, onShowTasks, openTask, completeTask }: {
     const activation = listen('kairos-notification-action', receiveActions);
     void activation.then(receiveActions, () => undefined);
     return () => { mounted = false; for (const listener of [updates, activation]) void listener.then((unlisten) => unlisten(), () => undefined); };
-  }, [onShowTasks, openTask]);
+  }, [onOpenChange, onShowTasks, openTask]);
 
   async function save(action: Action) {
     setProblem('');
@@ -201,11 +201,13 @@ export function ReminderHub({ active, onShowTasks, openTask, completeTask }: {
   const orderedNotices = selected ? [selected, ...notices.filter((notice) => notice.id !== selected.id)] : notices;
   const count = notices.length;
   return <>
-    <button type="button" onClick={() => {
-      setOpen(true);
+    <button type="button" aria-expanded={open} aria-haspopup="dialog" onClick={() => {
+      setSnoozing(undefined);
+      onOpenChange(!open);
+      if (open) return;
       void request().then(setData, (error: unknown) => setProblem(errorText(error)));
     }}>Reminders{count > 0 ? ' · ' + count : ''}</button>
-    {active && open && <Modal title="Reminders" onClose={() => { setOpen(false); setSnoozing(undefined); }}>
+    {active && open && <Modal title="Reminders" onClose={() => { onOpenChange(false); setSnoozing(undefined); }}>
       {problem && <p role="alert">{problem}</p>}
       {data ? <>
         {data.notices.length === 0 && <p className="task-hint">No pending reminders.</p>}
@@ -215,7 +217,7 @@ export function ReminderHub({ active, onShowTasks, openTask, completeTask }: {
           <p className="task-hint">{notice.count > 1 ? notice.count + ' reminders due' : 'Task reminder'}</p>
           {notice.nativeStatus === 'unavailable' && <p className="task-hint">Windows toast unavailable.</p>}
           <div className="task-actions">
-            <button type="button" onClick={() => { setOpen(false); openTask(notice.taskId); }}>Open Task</button>
+            <button type="button" onClick={() => { onOpenChange(false); openTask(notice.taskId); }}>Open Task</button>
             <button type="button" onClick={() => void completeTask(notice.taskId).then((done) => { if (done) void save({ kind: 'dismiss', id: notice.id }); })}>Complete</button>
             <button type="button" onClick={() => { setSnoozing(notice.id); setUntil(''); }}>Snooze</button>
             <button type="button" onClick={() => void save({ kind: 'dismiss', id: notice.id })}>Dismiss</button>

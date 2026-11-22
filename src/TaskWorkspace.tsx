@@ -114,14 +114,16 @@ export function TaskWorkspace({ active, startupPage = 'tasks', onOpenSettings, o
   const [detailId, setDetailId] = useState<string>();
   const [view, setView] = useState<'tasks' | HistoryKind>(startupPage === 'completed' ? 'completed' : 'tasks');
   const [filters, setFilters] = useState(emptyFilters);
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [toolbarPanel, setToolbarPanel] = useState<'search' | 'filter' | 'more' | 'reminders' | null>(null);
   const [query, setQuery] = useState('');
   const queue = useRef(Promise.resolve());
   const addInput = useRef<HTMLInputElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
   const pendingFocus = useRef<'new' | 'search' | null>(null);
   const moreMenu = useRef<HTMLDetailsElement>(null);
+  const searchOpen = toolbarPanel === 'search';
+  const filterOpen = toolbarPanel === 'filter';
+  const setRemindersOpen = useCallback((open: boolean) => setToolbarPanel(open ? 'reminders' : null), []);
 
   const run = useCallback((action?: TaskAction) => {
     const result = queue.current.then(async () => {
@@ -181,7 +183,7 @@ export function TaskWorkspace({ active, startupPage = 'tasks', onOpenSettings, o
         onShowTasks();
       }
       setView('tasks');
-      setSearchOpen(true);
+      setToolbarPanel('search');
       searchInput.current?.focus();
     };
     const open = (event: KeyboardEvent) => {
@@ -241,7 +243,7 @@ export function TaskWorkspace({ active, startupPage = 'tasks', onOpenSettings, o
   const today = localDay(now);
 
   function chooseMore(action: () => void) {
-    if (moreMenu.current) moreMenu.current.open = false;
+    setToolbarPanel(null);
     action();
   }
 
@@ -273,14 +275,14 @@ export function TaskWorkspace({ active, startupPage = 'tasks', onOpenSettings, o
       <DailyProgress completed={board.statistics.completedToday} total={totalToday} />
       <div className="task-controls">
         {view === 'tasks' ? <>
-          <button type="button" aria-expanded={searchOpen} onClick={() => {
+          <button type="button" aria-expanded={searchOpen} aria-controls={searchOpen ? 'task-search' : undefined} onClick={() => {
             if (searchOpen) setQuery('');
-            setSearchOpen(!searchOpen);
-          }}>Search</button>
+            setToolbarPanel(searchOpen ? null : 'search');
+          }}>Search{query.trim() && ' ·'}</button>
           <div className="task-filter-anchor">
-            <button type="button" aria-expanded={filterOpen} aria-controls="task-filters" onClick={() => setFilterOpen(!filterOpen)}>Filter{filtering && ' ·'}</button>
+            <button type="button" aria-expanded={filterOpen} aria-controls="task-filters" onClick={() => setToolbarPanel(filterOpen ? null : 'filter')}>Filter{filtering && ' ·'}</button>
             <div id="task-filters" className="task-control-filters" role="group" aria-label="Task filters" hidden={!filterOpen}
-              onKeyDown={(event) => { if (event.key === 'Escape') setFilterOpen(false); }}>
+              onKeyDown={(event) => { if (event.key === 'Escape') setToolbarPanel(null); }}>
               <label>Category<select aria-label="Filter by category" value={filterCategory} onChange={(event) => setFilters({ ...filters, categoryId: event.target.value })}><CategoryOptions categories={board.categories} empty="All categories" /></select></label>
               <label>Priority<select aria-label="Filter by priority" value={filters.priority} onChange={(event) => setFilters({ ...filters, priority: event.target.value as Priority | '' })}>
                 <option value="">All priorities</option>{priorities.map((priority) => <option key={priority} value={priority}>{priority[0].toUpperCase() + priority.slice(1)}</option>)}
@@ -294,10 +296,13 @@ export function TaskWorkspace({ active, startupPage = 'tasks', onOpenSettings, o
             </div>
           </div>
         </> : <button type="button" onClick={() => setView('tasks')}>Tasks</button>}
-        <details className="workspace-more" ref={moreMenu} onKeyDown={(event) => {
+        <details className="workspace-more" ref={moreMenu} open={toolbarPanel === 'more'} onKeyDown={(event) => {
           if (event.key === 'Escape') chooseMore(() => moreMenu.current?.querySelector('summary')?.focus());
         }}>
-          <summary>More</summary>
+          <summary onClick={(event) => {
+            event.preventDefault();
+            setToolbarPanel(toolbarPanel === 'more' ? null : 'more');
+          }}>More</summary>
           <div className="workspace-more-actions">
             <button type="button" onClick={() => chooseMore(() => setView('completed'))}>Completed</button>
             <button type="button" onClick={() => chooseMore(() => setStatisticsOpen(true))}>Statistics</button>
@@ -307,14 +312,19 @@ export function TaskWorkspace({ active, startupPage = 'tasks', onOpenSettings, o
             <button type="button" onClick={() => chooseMore(onOpenSettings)}>Settings</button>
           </div>
         </details>
-        <ReminderHub active={active} onShowTasks={onShowTasks} openTask={setDetailId} completeTask={(id) => run({ kind: 'setCompleted', id, completed: true })} />
-        <select aria-label="Task order" value={board.sortMode} onChange={(event) => void run({ kind: 'setSort', mode: event.target.value as SortMode })}>
+        <ReminderHub active={active} open={toolbarPanel === 'reminders'} onOpenChange={setRemindersOpen}
+          onShowTasks={onShowTasks} openTask={setDetailId} completeTask={(id) => run({ kind: 'setCompleted', id, completed: true })} />
+        <select aria-label="Task order" value={board.sortMode} onPointerDown={() => setToolbarPanel(null)}
+          onKeyDown={() => setToolbarPanel(null)} onChange={(event) => {
+            setToolbarPanel(null);
+            void run({ kind: 'setSort', mode: event.target.value as SortMode });
+          }}>
           <option value="automatic">Automatic</option><option value="manual">Manual</option>
         </select>
       </div>
-      {searchOpen && view === 'tasks' && <input type="search" ref={searchInput} className="task-search" aria-label="Search task titles and notes" placeholder="Search tasks…"
+      {searchOpen && view === 'tasks' && <input id="task-search" type="search" ref={searchInput} className="task-search" aria-label="Search task titles and notes" placeholder="Search tasks…"
         value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => {
-          if (event.key === 'Escape') { setQuery(''); setSearchOpen(false); }
+          if (event.key === 'Escape') { setQuery(''); setToolbarPanel(null); }
         }} />}
     </div>
     {error && <p className="task-hint task-error" role="alert">{error}<button type="button" aria-label="Dismiss error" onClick={() => setError('')}>×</button></p>}

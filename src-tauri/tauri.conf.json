@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Kairos",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "identifier": "app.kairos.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -31,5 +31,12 @@
       "devCsp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ipc: http://ipc.localhost ws://127.0.0.1:1420; object-src 'none'; base-uri 'none'"
     }
   },
-  "bundle": { "active": false, "icon": ["icons/icon.ico"] }
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": ["icons/icon.ico"],
+    "windows": {
+      "nsis": { "installMode": "currentUser", "installerHooks": "windows/setup.nsh" }
+    }
+  }
 }

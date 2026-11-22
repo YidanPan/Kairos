@@ -1,12 +1,20 @@
-use std::{collections::VecDeque, path::Path};
+use std::{
+    collections::VecDeque,
+    io::Write,
+    path::Path,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Mutex,
+    },
+};
 
 use tauri::AppHandle;
 use windows::{
-    core::{IInspectable, Interface, Ref, HSTRING},
+    core::{IInspectable, Interface, Ref, HSTRING, PCWSTR},
     Data::Xml::Dom::XmlDocument,
     Foundation::TypedEventHandler,
     Win32::{
-        Media::Audio::{PlaySoundW, SND_ASYNC, SND_FILENAME, SND_NODEFAULT},
+        Media::Audio::{PlaySoundW, SND_ASYNC, SND_FILENAME, SND_FLAGS, SND_NODEFAULT},
         System::WinRT::{RoInitialize, RoUninitialize, RO_INIT_MULTITHREADED},
         UI::Shell::SetCurrentProcessExplicitAppUserModelID,
     },
@@ -16,6 +24,12 @@ use windows::{
 };
 
 use super::{activated, Notice, Result};
+
+static CALLBACK_GENERATION: AtomicUsize = AtomicUsize::new(0);
+
+pub(super) fn invalidate_callbacks() {
+    CALLBACK_GENERATION.fetch_add(1, Ordering::Relaxed);
+}
 
 pub(super) fn set_identity(identifier: &str) -> Result<()> {
     let identity = HSTRING::from(identifier);
@@ -62,8 +76,12 @@ impl Toasts {
         let toast = ToastNotification::CreateToastNotification(&document)
             .map_err(|error| error.to_string())?;
         let app = app.clone();
+        let generation = CALLBACK_GENERATION.load(Ordering::Relaxed);
         let listener = TypedEventHandler::<ToastNotification, IInspectable>::new(
             move |_, event: Ref<IInspectable>| {
+                if generation != CALLBACK_GENERATION.load(Ordering::Relaxed) {
+                    return Ok(());
+                }
                 if let Ok(event) = event
                     .ok()
                     .and_then(|event| event.cast::<ToastActivatedEventArgs>())
@@ -145,10 +163,17 @@ fn toast_xml(notice: &Notice, custom: bool) -> String {
     )
 }
 
-pub(super) fn play(path: &Path) -> Result<()> {
-    if !path.is_file() {
-        return Err("Choose a WAV file first.".into());
-    }
+pub(super) fn play(directory: &Path, sound: &[u8]) -> Result<()> {
+    static PLAYING: Mutex<()> = Mutex::new(());
+    let _lock = PLAYING.lock().map_err(|error| error.to_string())?;
+    let path = directory.join("playback-cache.wav");
+    let mut pending =
+        tempfile::NamedTempFile::new_in(directory).map_err(|error| error.to_string())?;
+    pending
+        .write_all(sound)
+        .map_err(|error| error.to_string())?;
+    let _ = unsafe { PlaySoundW(PCWSTR::null(), None, SND_FLAGS(0)) };
+    pending.persist(&path).map_err(|error| error.to_string())?;
     let path = HSTRING::from(path.as_os_str());
     let playing = unsafe { PlaySoundW(&path, None, SND_FILENAME | SND_ASYNC | SND_NODEFAULT) };
     if playing.as_bool() {

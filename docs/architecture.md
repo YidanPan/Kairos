@@ -29,3 +29,9 @@ Streaks start on the first recorded activity date. Missed plans remain on their 
 The `behavior` setting stores the window mode, startup page, and Smart mode executable whitelist. Smart mode checks the foreground window against its monitor bounds and updates the panel's topmost state when it changes. Outside fullscreen, an empty whitelist admits all foreground applications. A configured whitelist matches executable filenames without regard to case.
 
 The Windows runtime uses Tauri 2 plugins for global shortcuts, per-user login registration, and single-instance handling. Tray restoration and the global recovery shortcut clear native click-through. Click-through also resets whenever Kairos starts. Hiding the panel leaves the reminder worker running.
+
+Migration 007 stores custom reminder audio in SQLite so backups include it. Upgrades import the existing `notification.wav` during migration. Playback uses a regenerated local file for Windows audio.
+
+Kairos uses SQLite's Online Backup API to write snapshots to a temporary file and publishes the file after integrity checks. The backup folder keeps the newest 30 managed files. Restore stages and validates the selected snapshot, makes a safety backup of the current database, and applies changes in a transaction. Replace restores records and app settings while retaining the local backup-folder location and Windows startup registration. Merge keeps current IDs, settings and sound. It adds missing tasks, maps colliding category names, and remaps imported reminder batch IDs and snooze receipts.
+
+The NSIS installer registers a fresh installation for Windows sign-in and backs up an existing local database before copying new binaries. On uninstall, Windows removes the executable, shortcuts and startup entry. The default uninstaller preserves the application data and backups.

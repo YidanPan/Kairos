@@ -16,6 +16,12 @@ Close hides Kairos to the system tray so reminders can keep running. Use the tra
 | `Ctrl+Alt+Shift+S` | Open Settings |
 | `Ctrl+Alt+Shift+R` | Restore mouse interaction |
 
+## Backup and recovery
+
+Open **Settings → Data and backups** to make a snapshot, choose its folder, export it, or import an existing snapshot. Kairos makes automatic daily backups and keeps up to 30 snapshots in the active backup folder. Restore shows the impact before you confirm and saves the current data first. **Merge** adds missing tasks and keeps local edits. **Replace** restores the database contents and app settings from the selected backup.
+
+Build the Windows x64 installer with `npm run tauri build`. The NSIS executable is written to `src-tauri/target/release/bundle/nsis/`. Uninstallation preserves local data by default. Select the data removal checkbox only when you intend to delete it.
+
 ## Project layout
 
 | Path | Purpose |

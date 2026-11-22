@@ -16,7 +16,6 @@ mod tests;
 mod windows;
 
 type Result<T> = std::result::Result<T, String>;
-const AUDIO_FILE: &str = "notification.wav";
 const OFFSETS: [u16; 5] = [0, 10, 30, 60, 1440];
 
 #[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -425,7 +424,7 @@ fn apply(database: &Connection, directory: &Path, action: Action) -> Result<()> 
                     );
                 }
             }
-            if preferences.sound == Sound::Custom && !directory.join(AUDIO_FILE).is_file() {
+            if preferences.sound == Sound::Custom && !has_sound(database)? {
                 return Err("Choose a WAV file first.".into());
             }
             database.execute("INSERT INTO app_settings(key,value) VALUES ('notifications',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value",[json(&preferences)?]).map_err(db)?;
@@ -447,17 +446,15 @@ fn apply(database: &Connection, directory: &Path, action: Action) -> Result<()> 
             {
                 return Err("Choose a WAV file smaller than 12 MB.".into());
             }
-            use std::io::Write;
-            let mut pending =
-                tempfile::NamedTempFile::new_in(directory).map_err(|error| error.to_string())?;
-            pending
-                .write_all(&bytes)
-                .map_err(|error| error.to_string())?;
-            pending
-                .persist(directory.join(AUDIO_FILE))
-                .map_err(|error| error.to_string())?;
+            database
+                .execute(
+                    "INSERT INTO app_assets(name,contents) VALUES (?1,?2)
+                ON CONFLICT(name) DO UPDATE SET contents=excluded.contents",
+                    params![storage::NOTIFICATION_SOUND, bytes],
+                )
+                .map_err(db)?;
         }
-        Action::PreviewSound => audio(directory)?,
+        Action::PreviewSound => audio(database, directory)?,
         Action::Dismiss { id } => {
             database
                 .execute("UPDATE reminder_batches SET dismissed=1 WHERE id=?1", [id])
@@ -509,21 +506,40 @@ pub async fn reminder_state(
             task,
             category_offsets,
             notices: inbox(&database)?,
-            has_custom_sound: directory.join(AUDIO_FILE).is_file(),
+            has_custom_sound: has_sound(&database)?,
         })
     })
     .await
     .map_err(|error| error.to_string())?
 }
 
-fn audio(directory: &Path) -> Result<()> {
+fn has_sound(database: &Connection) -> Result<bool> {
+    database
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM app_assets WHERE name=?1)",
+            [storage::NOTIFICATION_SOUND],
+            |row| row.get(0),
+        )
+        .map_err(db)
+}
+
+fn audio(database: &Connection, directory: &Path) -> Result<()> {
     #[cfg(windows)]
     {
-        windows::play(&directory.join(AUDIO_FILE))
+        let sound: Vec<u8> = database
+            .query_row(
+                "SELECT contents FROM app_assets WHERE name=?1",
+                [storage::NOTIFICATION_SOUND],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(db)?
+            .ok_or("Choose a WAV file first.")?;
+        windows::play(directory, &sound)
     }
     #[cfg(not(windows))]
     {
-        let _ = directory;
+        let _ = (database, directory);
         Err("WAV preview is available on Windows.".into())
     }
 }
@@ -572,6 +588,11 @@ pub fn identify(app: &AppHandle) {
     let _ = app;
 }
 
+pub fn invalidate_callbacks() {
+    #[cfg(windows)]
+    windows::invalidate_callbacks();
+}
+
 pub fn start(app: AppHandle) {
     thread::spawn(move || {
         let Ok(directory) = app.path().app_data_dir() else {
@@ -598,7 +619,7 @@ pub fn start(app: AppHandle) {
                     let accepted=false;
                     database.execute("UPDATE reminder_batches SET native_status=?2 WHERE id=?1",
                         params![id,if accepted {"accepted"} else {"unavailable"}]).map_err(db)?;
-                    if custom { let _=audio(&directory); }
+                    if custom { let _=audio(&database, &directory); }
                 }
                 let _=app.emit("kairos-reminders",());
                 Ok(())

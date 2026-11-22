@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod backup;
 mod integration;
 mod panel;
 mod reminders;
@@ -32,6 +33,23 @@ async fn storage_info(app: tauri::AppHandle) -> Result<StorageInfo, String> {
 }
 
 fn main() {
+    let context = tauri::generate_context!();
+    #[cfg(windows)]
+    if std::env::args_os().nth(1).as_deref() == Some(std::ffi::OsStr::new("--backup-before-update"))
+    {
+        let result = std::env::var_os("APPDATA")
+            .ok_or_else(|| "Windows application data is unavailable.".to_owned())
+            .and_then(|directory| {
+                backup::before_update(
+                    &std::path::PathBuf::from(directory).join(&context.config().identifier),
+                )
+            });
+        if let Err(error) = result {
+            eprintln!("Kairos upgrade backup: {error}");
+            std::process::exit(1);
+        }
+        return;
+    }
     let builder = tauri::Builder::default();
     #[cfg(windows)]
     let builder = builder
@@ -40,12 +58,15 @@ fn main() {
                 eprintln!("Could not restore Kairos: {error}");
             }
         }))
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build());
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init());
     builder
         .setup(|app| {
             reminders::identify(app.handle());
             panel::setup(app)?;
             integration::setup(app.handle())?;
+            app.manage(backup::BackupState::default());
+            backup::start(app.handle());
             reminders::start(app.handle().clone());
             Ok(())
         })
@@ -59,6 +80,13 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             storage_info,
+            backup::backup_status,
+            backup::create_backup,
+            backup::set_backup_directory,
+            backup::export_backup,
+            backup::preview_restore,
+            backup::restore_backup,
+            backup::discard_restore,
             integration::integration_status,
             integration::save_behavior,
             integration::set_click_through,
@@ -69,6 +97,6 @@ fn main() {
             tasks::task_board,
             reminders::reminder_state,
         ])
-        .run(tauri::generate_context!())
+        .run(context)
         .expect("Kairos could not start");
 }

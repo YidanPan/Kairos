@@ -149,6 +149,15 @@ button:disabled { cursor: default; opacity: .6; }
 .integration-shortcuts dl div { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; }
 .integration-shortcuts dd { margin: 0; }
 
+.data-settings { border-top: 1px solid var(--border); padding: 8px 0; font-size: .78rem; }
+.data-settings summary { cursor: pointer; font-weight: 600; }
+.data-paths { display: grid; gap: 6px; margin: 8px 0; }
+.data-paths dd { margin: 2px 0 0; overflow-wrap: anywhere; color: var(--muted); }
+.data-actions { flex-wrap: wrap; }
+.data-backups { list-style: none; display: grid; gap: 4px; padding: 0; margin: 6px 0; }
+.data-backups li { display: flex; gap: 5px; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 4px; }
+.data-backups small { color: var(--muted); white-space: nowrap; }
+
 .task-board-body { padding: 0 18px 16px; }
 .task-workspace { min-width: 0; }
 .task-toolbar { position: sticky; top: 0; z-index: 1; background: var(--surface); padding: 12px 0 8px; }

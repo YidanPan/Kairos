@@ -81,6 +81,12 @@ fn load_preferences(app: &AppHandle) -> Result<Behavior, Box<dyn std::error::Err
         .unwrap_or_default())
 }
 
+pub fn reload_preferences(app: &AppHandle) {
+    if let Ok(preferences) = load_preferences(app) {
+        *app.state::<IntegrationState>().preferences.lock().unwrap() = preferences;
+    }
+}
+
 #[tauri::command]
 pub fn integration_status(app: AppHandle) -> Integration {
     let state = app.state::<IntegrationState>();

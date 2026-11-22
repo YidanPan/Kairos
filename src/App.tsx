@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { DataSettings } from './DataSettings';
 import { getStorageInfo, integrationStatus, isDesktop } from './desktop';
 import type { Integration } from './desktop';
 import { SystemSettings } from './SystemSettings';
@@ -194,6 +195,7 @@ export function App() {
             </label>
           </section>
           {settingsOpen && integration && <SystemSettings system={integration} onUpdate={updateIntegration} />}
+          {settingsOpen && isDesktop && storage.status === 'ready' && <DataSettings />}
           {isDesktop && storage.status === 'ready' && integration !== undefined && <TaskWorkspace startupPage={integration?.preferences.startupPage} onOpenSettings={() => setSettingsOpen(true)} />}
         </div>
       </div>

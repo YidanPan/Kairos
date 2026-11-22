@@ -5,7 +5,7 @@ use rusqlite::{params, Connection, OptionalExtension, Transaction, TransactionBe
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
-use crate::storage;
+use crate::{backup, storage};
 
 mod advanced;
 mod recurrence;
@@ -205,6 +205,12 @@ pub async fn task_board(app: AppHandle, action: Option<Action>) -> BoardResult<B
         .map_err(|error| error.to_string())?;
     tauri::async_runtime::spawn_blocking(move || {
         let mut database = storage::open(&directory).map_err(|error| error.to_string())?;
+        if matches!(
+            &action,
+            Some(Action::PurgeTrash { .. } | Action::DeleteCategory { .. })
+        ) {
+            backup::before_change(&directory)?;
+        }
         board(&mut database, action, Local::now().naive_local())
     })
     .await

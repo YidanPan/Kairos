@@ -10,6 +10,7 @@
 | 5 · Notifications | Implemented. The scheduler, inbox, WAV preview, and Windows toast display passed checks. Native button activation and actual suspend/resume verification are pending. |
 | 6 · Statistics and search | Passed Phase 6 checks. Group 3 remains open for the two outstanding Phase 5 Windows checks. |
 | 7 · System integration | Implemented and tested on the local branch. Windows sign-in and direct interaction with the system tray menu still need a manual check. |
+| 8 · Backup and release | Implemented. The isolated Windows installation, backup, restore, upgrade and uninstall checks passed. The v1.0.0 installer is built locally. |
 
 ## Phase 1 verification
 
@@ -64,3 +65,11 @@ Status **PASS** for Phases 3 and 4.
 - Verified that the close button hid the panel while Windows accepted a background reminder. Starting a second copy exited the new process and restored the original window. Restarting preserved the selected startup page and window preferences, and reset click-through.
 - Verified that the launch-at-login setting created and removed the correct current-user registry entry for the test executable. Signing out and back in and directly operating the system tray menu still need Windows desktop verification.
 - ESLint, TypeScript, Rust formatting, 11 frontend tests, 28 Rust tests, and the optimized Windows build passed.
+
+## Phase 8 verification
+
+- In the isolated Windows installation, verified the first daily snapshot, manual snapshots, folder selection and reset, export via the native Save dialog, and import preview via the native Open dialog.
+- Verified safety snapshots before Trash purge, Merge, and Replace. Merge restored a missing task and its subtask while preserving a locally edited task. Replace restored the historical titles and custom WAV and removed the task added afterward. The restored data was still present after relaunch.
+- Tests cover damaged-file rejection, transaction rollback on a failed restore, the 30-file rotation, duplicate task and active recurrence IDs, and remapping snooze receipts when merging reminder history.
+- Verified that the NSIS installer registered a Start menu shortcut and login startup. An install over the existing copy saved a checked snapshot and kept startup disabled. Uninstallation removed the executable and preserved the SQLite database byte for byte.
+- ESLint, TypeScript, Rust formatting, 11 frontend tests, and 31 Rust tests passed. Built the x64 NSIS installer for Kairos v1.0.0 locally. Native notification buttons, actual Windows sleep/wake, sign-in, direct tray menu interaction and the previously deferred dual-display checks remain open.

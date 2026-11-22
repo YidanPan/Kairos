@@ -100,7 +100,9 @@ function TaskRow({ task, category, subtasks, now, manual, onOpen, onToggle, onDr
   </li>;
 }
 
-export function TaskWorkspace({ startupPage = 'tasks', onOpenSettings }: { startupPage?: StartupPage; onOpenSettings: () => void }) {
+export function TaskWorkspace({ active, startupPage = 'tasks', onOpenSettings, onShowTasks }: {
+  active: boolean; startupPage?: StartupPage; onOpenSettings: () => void; onShowTasks: () => void;
+}) {
   const [board, setBoard] = useState<Board>();
   const [now, setNow] = useState(() => new Date());
   const [error, setError] = useState('');
@@ -118,6 +120,7 @@ export function TaskWorkspace({ startupPage = 'tasks', onOpenSettings }: { start
   const queue = useRef(Promise.resolve());
   const addInput = useRef<HTMLInputElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
+  const pendingFocus = useRef<'new' | 'search' | null>(null);
   const moreMenu = useRef<HTMLDetailsElement>(null);
 
   const run = useCallback((action?: TaskAction) => {
@@ -157,17 +160,32 @@ export function TaskWorkspace({ startupPage = 'tasks', onOpenSettings }: { start
   }, [searchOpen, view]);
 
   useEffect(() => {
+    if (!active || !pendingFocus.current) return;
+    const input = pendingFocus.current === 'new' ? addInput : searchInput;
+    pendingFocus.current = null;
+    input.current?.focus();
+  }, [active]);
+
+  useEffect(() => {
     const newTask = () => {
+      if (!active) {
+        pendingFocus.current = 'new';
+        onShowTasks();
+      }
       setQuickAdd(true);
       addInput.current?.focus();
     };
     const search = () => {
+      if (!active) {
+        pendingFocus.current = 'search';
+        onShowTasks();
+      }
       setView('tasks');
       setSearchOpen(true);
       searchInput.current?.focus();
     };
     const open = (event: KeyboardEvent) => {
-      if (!event.ctrlKey || event.altKey || event.shiftKey || document.querySelector('dialog[open]')) return;
+      if (!active || !event.ctrlKey || event.altKey || event.shiftKey || document.querySelector('dialog[open]')) return;
       const key = event.key.toLowerCase();
       if (key === 'n' || key === 'f') event.preventDefault();
       if (key === 'n') newTask();
@@ -180,7 +198,7 @@ export function TaskWorkspace({ startupPage = 'tasks', onOpenSettings }: { start
       window.removeEventListener('keydown', open);
       for (const registration of [releaseNew, releaseSearch]) void registration.then((unlisten) => unlisten(), () => undefined);
     };
-  }, []);
+  }, [active, onShowTasks]);
 
   async function add(event: FormEvent) {
     event.preventDefault();
@@ -289,7 +307,7 @@ export function TaskWorkspace({ startupPage = 'tasks', onOpenSettings }: { start
             <button type="button" onClick={() => chooseMore(onOpenSettings)}>Settings</button>
           </div>
         </details>
-        <ReminderHub openTask={setDetailId} completeTask={(id) => run({ kind: 'setCompleted', id, completed: true })} />
+        <ReminderHub active={active} onShowTasks={onShowTasks} openTask={setDetailId} completeTask={(id) => run({ kind: 'setCompleted', id, completed: true })} />
         <select aria-label="Task order" value={board.sortMode} onChange={(event) => void run({ kind: 'setSort', mode: event.target.value as SortMode })}>
           <option value="automatic">Automatic</option><option value="manual">Manual</option>
         </select>
@@ -303,9 +321,9 @@ export function TaskWorkspace({ startupPage = 'tasks', onOpenSettings }: { start
     {view === 'tasks' ? sections.map((section) => <section className="task-section" key={section}><h3>{section}</h3>
       {grouped[section].length ? <ul>{grouped[section].map((task, index) => row(task, section, index))}</ul> : <p className="task-hint">No tasks</p>}
     </section>) : <TaskHistory key={view} kind={view} items={archives[view]} run={run} openTask={setDetailId} />}
-    {detail && <TaskDetails key={detail.id} task={detail} categories={board.categories} history={board.scheduleHistory.filter((entry) => entry.taskId === detail.id)}
+    {active && detail && <TaskDetails key={detail.id} task={detail} categories={board.categories} history={board.scheduleHistory.filter((entry) => entry.taskId === detail.id)}
       subtasks={subtasksByTask.get(detail.id) ?? []} run={run} onClose={() => setDetailId(undefined)} />}
-    {categoriesOpen && <Categories categories={board.categories} run={run} onClose={() => setCategoriesOpen(false)} />}
-    {statisticsOpen && <TaskStatistics statistics={board.statistics} totalToday={totalToday} run={run} onClose={() => setStatisticsOpen(false)} />}
+    {active && categoriesOpen && <Categories categories={board.categories} run={run} onClose={() => setCategoriesOpen(false)} />}
+    {active && statisticsOpen && <TaskStatistics statistics={board.statistics} totalToday={totalToday} run={run} onClose={() => setStatisticsOpen(false)} />}
   </div>;
 }

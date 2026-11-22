@@ -108,7 +108,9 @@ button:disabled { cursor: default; opacity: .6; }
 .window-control.expand { --control-color: #92bc96; }
 
 .panel-scroll { flex: 1; min-height: 0; overflow: auto; }
+.panel-scroll[hidden] { display: none; }
 .panel-body { display: grid; gap: 10px; padding: 34px 26px 37px; }
+.settings-body { gap: 16px; padding: 14px 18px 16px; }
 .panel-body time, .status { color: var(--muted); font-size: .875rem; line-height: 1.5; }
 .status { margin: 0; }
 
@@ -125,13 +127,12 @@ button:disabled { cursor: default; opacity: .6; }
 .appearance-settings {
   display: grid;
   gap: 10px;
-  margin-block-start: 16px;
   padding-block-start: 15px;
   border-block-start: 1px solid var(--border);
   font-size: .875rem;
 }
 
-.appearance-settings[hidden] { display: none; }
+.settings-body #appearance-settings { padding-block-start: 0; border-block-start: 0; }
 .appearance-settings h2 { margin: 0 0 2px; font-size: .875rem; font-weight: 650; }
 .appearance-settings label { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
 .appearance-settings select { min-width: 126px; }

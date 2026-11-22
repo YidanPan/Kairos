@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { DataSettings } from './DataSettings';
@@ -27,8 +27,13 @@ export function App() {
   const [backdrop, setBackdropActive] = useState(false);
   const [systemDark, setSystemDark] = useState(() => matchMedia('(prefers-color-scheme: dark)').matches);
   const chrome = useRef<HTMLElement>(null);
-  const content = useRef<HTMLDivElement>(null);
-  const appearanceSettings = useRef<HTMLElement>(null);
+  const taskContent = useRef<HTMLDivElement>(null);
+  const settingsContent = useRef<HTMLDivElement>(null);
+  const title = useRef<HTMLHeadingElement>(null);
+  const showSettings = useCallback(() => setSettingsOpen(true), []);
+  const showTasks = useCallback(() => {
+    if (!document.querySelector('.settings-body dialog[open]')) setSettingsOpen(false);
+  }, []);
   const panelWindow = isDesktop ? getCurrentWindow() : null;
   const dark = appearance.theme === 'dark' || (appearance.theme === 'system' && systemDark);
 
@@ -50,7 +55,7 @@ export function App() {
   useEffect(() => {
     if (!isDesktop) return;
     const lifetime = new AbortController();
-    const releaseTray = listen('kairos-open-settings', () => setSettingsOpen(true));
+    const releaseTray = listen('kairos-open-settings', showSettings);
     void releaseTray.catch(reportWindowError);
     const releaseInteraction = listen<boolean>('kairos-click-through', (event) => updateIntegration({ clickThrough: event.payload }));
     void releaseInteraction.catch(reportWindowError);
@@ -65,7 +70,7 @@ export function App() {
       void releaseTray.then((unlisten) => unlisten(), () => undefined);
       void releaseInteraction.then((unlisten) => unlisten(), () => undefined);
     };
-  }, []);
+  }, [showSettings]);
 
   useEffect(() => {
     if (!isDesktop) return;
@@ -77,12 +82,12 @@ export function App() {
     const keyboard = (event: KeyboardEvent) => {
       if (event.ctrlKey && !event.altKey && !event.shiftKey && event.key === ',' && !document.querySelector('dialog[open]')) {
         event.preventDefault();
-        setSettingsOpen(true);
+        showSettings();
       }
     };
     window.addEventListener('keydown', keyboard);
     return () => { active = false; window.removeEventListener('keydown', keyboard); };
-  }, []);
+  }, [showSettings]);
 
   useEffect(() => {
     if (!panel) return;
@@ -95,15 +100,15 @@ export function App() {
   }, [appearance, dark, panel]);
 
   useEffect(() => {
-    if (!panel || !chrome.current || !content.current) return;
+    const body = settingsOpen ? settingsContent.current : taskContent.current;
+    if (!panel || !chrome.current || !body) return;
     const bar = chrome.current;
-    const body = content.current;
     const fit = () => panel.fit(Math.ceil(bar.offsetHeight + body.offsetHeight + 2));
     const observer = new ResizeObserver(fit);
     observer.observe(bar);
     observer.observe(body);
     return () => observer.disconnect();
-  }, [panel]);
+  }, [panel, settingsOpen]);
 
   useEffect(() => {
     const refreshDate = () => setToday(dateFormat.format(new Date()));
@@ -116,7 +121,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (settingsOpen) appearanceSettings.current?.scrollIntoView({ block: 'nearest' });
+    if (settingsOpen) title.current?.focus();
   }, [settingsOpen]);
 
   useEffect(() => {
@@ -145,6 +150,12 @@ export function App() {
     void panel?.updateAppearance(next);
   }
 
+  const storageError = storage.status === 'error' && <div className="storage-error">
+    <p className="status" role="alert">{storage.message}</p>
+    <button type="button" onClick={retryStorage}>Try again</button>
+  </div>;
+  const windowStatus = windowError && <p className="status" role="alert">{windowError}</p>;
+
   return (
     <main className="panel" data-theme={dark ? 'dark' : 'light'} data-transparency={appearance.transparency} data-backdrop={backdrop}>
       <header className="panel-header" ref={chrome}>
@@ -158,23 +169,25 @@ export function App() {
         <div className="title-region" onPointerDown={(event) => {
           if (panelWindow) startPanelGesture(event, 'Move', reportWindowError);
         }}>
-          <h1>Kairos</h1>
+          <h1 ref={title} tabIndex={settingsOpen ? -1 : undefined}>{settingsOpen ? 'Settings' : 'Kairos'}</h1>
         </div>
-        <button className="settings-button" type="button" aria-expanded={settingsOpen} aria-controls="appearance-settings" onClick={() => setSettingsOpen((open) => !open)}>Settings</button>
+        <button className="settings-button" type="button" onClick={settingsOpen ? showTasks : showSettings}>{settingsOpen ? 'Back to tasks' : 'Settings'}</button>
       </header>
-      <div className="panel-scroll">
-        <div className={storage.status === 'ready' ? 'panel-body task-board-body' : 'panel-body'} ref={content}>
+      <div className="panel-scroll" hidden={settingsOpen}>
+        <div className={storage.status === 'ready' ? 'panel-body task-board-body' : 'panel-body'} ref={taskContent}>
           {storage.status !== 'ready' && <><time>{today}</time><p className="tagline">At your own pace.</p></>}
           {!isDesktop && <p className="status">Open the desktop app to access local storage.</p>}
           {isDesktop && storage.status === 'loading' && <p className="status" role="status">Opening local storage…</p>}
-          {isDesktop && storage.status === 'error' && (
-            <div className="storage-error">
-              <p className="status" role="alert">{storage.message}</p>
-              <button type="button" onClick={retryStorage}>Try again</button>
-            </div>
-          )}
-          {windowError && <p className="status" role="alert">{windowError}</p>}
-          <section ref={appearanceSettings} id="appearance-settings" className="appearance-settings" aria-label="Appearance" hidden={!settingsOpen}>
+          {storageError}
+          {windowStatus}
+          {isDesktop && storage.status === 'ready' && integration !== undefined && <TaskWorkspace active={!settingsOpen}
+            startupPage={integration?.preferences.startupPage} onOpenSettings={showSettings} onShowTasks={showTasks} />}
+        </div>
+      </div>
+      {settingsOpen && <div className="panel-scroll" role="region" aria-label="Settings">
+        <div className="panel-body settings-body" ref={settingsContent}>
+          {windowStatus}
+          <section id="appearance-settings" className="appearance-settings" aria-label="Appearance">
             <h2>Appearance</h2>
             <label>
               Theme
@@ -194,11 +207,11 @@ export function App() {
               </select>
             </label>
           </section>
-          {settingsOpen && integration && <SystemSettings system={integration} onUpdate={updateIntegration} />}
-          {settingsOpen && isDesktop && storage.status === 'ready' && <DataSettings />}
-          {isDesktop && storage.status === 'ready' && integration !== undefined && <TaskWorkspace startupPage={integration?.preferences.startupPage} onOpenSettings={() => setSettingsOpen(true)} />}
+          {integration && <SystemSettings system={integration} onUpdate={updateIntegration} />}
+          {isDesktop && storage.status === 'ready' && <DataSettings />}
+          {storageError}
         </div>
-      </div>
+      </div>}
       {panelWindow && resizeHandles.map((direction) => (
         <div key={direction} className="resize-handle" data-direction={direction} aria-hidden="true" onPointerDown={(event) => {
           startPanelGesture(event, direction, reportWindowError);

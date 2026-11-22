@@ -14,6 +14,7 @@ use tauri::Manager;
 #[serde(rename_all = "camelCase")]
 struct StorageInfo {
     schema_version: u32,
+    daily_greeting: Option<panel::DailyGreeting>,
 }
 
 #[tauri::command]
@@ -26,7 +27,12 @@ async fn storage_info(app: tauri::AppHandle) -> Result<StorageInfo, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let connection = storage::open(&data_dir).map_err(|error| error.to_string())?;
         let schema_version = storage::version(&connection).map_err(|error| error.to_string())?;
-        Ok(StorageInfo { schema_version })
+        let daily_greeting = panel::daily_greeting(&connection, chrono::Local::now().date_naive())
+            .map_err(|error| error.to_string())?;
+        Ok(StorageInfo {
+            schema_version,
+            daily_greeting,
+        })
     })
     .await
     .map_err(|error| error.to_string())?
@@ -101,6 +107,7 @@ fn main() {
             integration::set_launch_at_login,
             panel::load_panel_preferences,
             panel::save_panel_preferences,
+            panel::save_daily_greeting,
             panel::set_panel_backdrop,
             tasks::task_board,
             reminders::reminder_state,

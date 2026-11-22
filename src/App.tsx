@@ -3,13 +3,15 @@ import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { DataSettings } from './DataSettings';
 import { getStorageInfo, integrationStatus, isDesktop } from './desktop';
-import type { Integration } from './desktop';
+import type { DailyGreeting, Integration } from './desktop';
+import { GreetingSettings } from './GreetingSettings';
 import { SystemSettings } from './SystemSettings';
 import { TaskWorkspace } from './TaskWorkspace';
+import { localDay } from './taskModel';
 import { connectPanel, defaultAppearance, resizeHandles, setBackdrop, startPanelGesture } from './panel';
 import type { Appearance, Panel, Theme, Transparency } from './panel';
 
-type StorageState = { status: 'loading' | 'ready' } | { status: 'error'; message: string };
+type StorageState = { status: 'loading' } | { status: 'ready'; dailyGreeting: DailyGreeting | null } | { status: 'error'; message: string };
 
 const dateFormat = new Intl.DateTimeFormat(undefined, {
   weekday: 'long', month: 'long', day: 'numeric',
@@ -18,7 +20,7 @@ const dateFormat = new Intl.DateTimeFormat(undefined, {
 export function App() {
   const [storage, setStorage] = useState<StorageState>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
-  const [today, setToday] = useState(() => dateFormat.format(new Date()));
+  const [now, setNow] = useState(() => new Date());
   const [panel, setPanel] = useState<Panel>();
   const [appearance, setAppearance] = useState(defaultAppearance);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -36,6 +38,10 @@ export function App() {
   }, []);
   const panelWindow = isDesktop ? getCurrentWindow() : null;
   const dark = appearance.theme === 'dark' || (appearance.theme === 'system' && systemDark);
+  const today = localDay(now);
+  const customGreeting = storage.status === 'ready' && storage.dailyGreeting?.date === today ? storage.dailyGreeting.text : '';
+  const hour = now.getHours();
+  const defaultGreeting = hour < 12 ? 'Good morning.' : hour < 18 ? 'Good afternoon.' : 'Good evening.';
 
   function reportWindowError(error: unknown) {
     setWindowError(error instanceof Error ? error.message : String(error));
@@ -111,11 +117,18 @@ export function App() {
   }, [panel, settingsOpen]);
 
   useEffect(() => {
-    const refreshDate = () => setToday(dateFormat.format(new Date()));
-    const timer = window.setInterval(refreshDate, 30_000);
+    let timer: number;
+    const refreshDate = () => {
+      window.clearTimeout(timer);
+      const date = new Date();
+      setNow(date);
+      const midnight = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+      timer = window.setTimeout(refreshDate, Math.min(30_000, midnight.getTime() - date.getTime()));
+    };
+    refreshDate();
     window.addEventListener('focus', refreshDate);
     return () => {
-      window.clearInterval(timer);
+      window.clearTimeout(timer);
       window.removeEventListener('focus', refreshDate);
     };
   }, []);
@@ -129,7 +142,7 @@ export function App() {
 
     let active = true;
     getStorageInfo().then(
-      () => { if (active) setStorage({ status: 'ready' }); },
+      ({ dailyGreeting }) => { if (active) setStorage({ status: 'ready', dailyGreeting }); },
       (error: unknown) => {
         if (active) setStorage({
           status: 'error',
@@ -148,6 +161,11 @@ export function App() {
   function updateAppearance(next: Appearance) {
     setAppearance(next);
     void panel?.updateAppearance(next);
+  }
+
+  function updateGreeting(dailyGreeting: DailyGreeting | null) {
+    setNow(new Date());
+    setStorage((current) => current.status === 'ready' ? { status: 'ready', dailyGreeting } : current);
   }
 
   const storageError = storage.status === 'error' && <div className="storage-error">
@@ -175,13 +193,13 @@ export function App() {
       </header>
       <div className="panel-scroll" hidden={settingsOpen}>
         <div className={storage.status === 'ready' ? 'panel-body task-board-body' : 'panel-body'} ref={taskContent}>
-          {storage.status !== 'ready' && <><time>{today}</time><p className="tagline">At your own pace.</p></>}
+          {storage.status !== 'ready' && <><time>{dateFormat.format(now)}</time><p className="tagline">At your own pace.</p></>}
           {!isDesktop && <p className="status">Open the desktop app to access local storage.</p>}
           {isDesktop && storage.status === 'loading' && <p className="status" role="status">Opening local storage…</p>}
           {storageError}
           {windowStatus}
           {isDesktop && storage.status === 'ready' && integration !== undefined && <TaskWorkspace active={!settingsOpen}
-            startupPage={integration?.preferences.startupPage} onOpenSettings={showSettings} onShowTasks={showTasks} />}
+            greeting={customGreeting || defaultGreeting} startupPage={integration?.preferences.startupPage} onOpenSettings={showSettings} onShowTasks={showTasks} />}
         </div>
       </div>
       {settingsOpen && <div className="panel-scroll" role="region" aria-label="Settings">
@@ -206,6 +224,7 @@ export function App() {
                 <option value="transparent">Transparent</option>
               </select>
             </label>
+            {storage.status === 'ready' && <GreetingSettings key={today} greeting={customGreeting} onSave={updateGreeting} />}
           </section>
           {integration && <SystemSettings system={integration} onUpdate={updateIntegration} />}
           {isDesktop && storage.status === 'ready' && <DataSettings />}

@@ -100,8 +100,8 @@ function TaskRow({ task, category, subtasks, now, manual, onOpen, onToggle, onDr
   </li>;
 }
 
-export function TaskWorkspace({ active, startupPage = 'tasks', onOpenSettings, onShowTasks }: {
-  active: boolean; startupPage?: StartupPage; onOpenSettings: () => void; onShowTasks: () => void;
+export function TaskWorkspace({ active, greeting, startupPage = 'tasks', onOpenSettings, onShowTasks }: {
+  active: boolean; greeting: string; startupPage?: StartupPage; onOpenSettings: () => void; onShowTasks: () => void;
 }) {
   const [board, setBoard] = useState<Board>();
   const [now, setNow] = useState(() => new Date());
@@ -238,8 +238,6 @@ export function TaskWorkspace({ active, startupPage = 'tasks', onOpenSettings, o
     if (items) items.push(item);
     else subtasksByTask.set(item.taskId, [item]);
   }
-  const hour = now.getHours();
-  const greeting = hour < 12 ? 'Good morning.' : hour < 18 ? 'Good afternoon.' : 'Good evening.';
   const today = localDay(now);
 
   function chooseMore(action: () => void) {

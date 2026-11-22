@@ -137,6 +137,8 @@ button:disabled { cursor: default; opacity: .6; }
 .appearance-settings label { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
 .appearance-settings select { min-width: 126px; }
 .appearance-settings option { background: var(--surface); }
+.appearance-settings .daily-greeting-form label { display: grid; justify-content: stretch; gap: 4px; }
+.daily-greeting-form .task-hint { margin: 0; }
 
 .system-settings fieldset { display: grid; gap: 6px; min-width: 0; margin: 0; padding: 0; border: 0; }
 .system-settings input[type='checkbox'] { accent-color: var(--text); }
@@ -168,9 +170,10 @@ button:disabled { cursor: default; opacity: .6; }
   gap: 6px;
 }
 .workspace-summary { justify-content: space-between; gap: 12px; margin-bottom: 9px; }
+.workspace-summary > div { min-width: 0; }
 .workspace-summary time { font-size: .77rem; }
-.workspace-summary h2 { margin: 4px 0 0; font: 1.56rem/1.1 Georgia, serif; letter-spacing: -.035em; }
-.quick-add-button { border-radius: 50%; width: 35px; height: 35px; padding: 0 0 2px; font-size: 1.3rem; }
+.workspace-summary h2 { margin: 4px 0 0; font: 1.56rem/1.1 Georgia, serif; letter-spacing: -.035em; overflow-wrap: anywhere; }
+.quick-add-button { flex: none; border-radius: 50%; width: 35px; height: 35px; padding: 0 0 2px; font-size: 1.3rem; }
 .task-controls { flex-wrap: wrap; font-size: .76rem; }
 .quick-add-form { margin-bottom: 8px; }
 .task-controls > select { margin-inline-start: auto; }

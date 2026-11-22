@@ -7,6 +7,7 @@ const MIGRATIONS: &[&str] = &[
     include_str!("../migrations/002_app_settings.sql"),
     include_str!("../migrations/003_tasks.sql"),
     include_str!("../migrations/004_advanced_tasks.sql"),
+    include_str!("../migrations/005_reminders.sql"),
 ];
 
 #[derive(Debug)]

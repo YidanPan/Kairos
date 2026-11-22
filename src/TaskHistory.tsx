@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal } from './TaskDetails';
+import { Modal } from './TaskModal';
 import { localDay } from './taskModel';
 import type { Task, TaskAction } from './taskModel';
 

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
+import { listen } from '@tauri-apps/api/event';
 import { taskBoard } from './desktop';
-import { CategoryOptions, Modal, TaskDetails } from './TaskDetails';
+import { CategoryReminders, ReminderHub } from './ReminderControls';
+import { CategoryOptions, TaskDetails } from './TaskDetails';
+import { Modal } from './TaskModal';
 import { TaskHistory } from './TaskHistory';
 import type { HistoryKind } from './TaskHistory';
 import { groupTasks, isOverdue, localDay, moveTask, priorities, sections, taskStatus } from './taskModel';
@@ -60,6 +63,7 @@ function Categories({ categories, run, onClose }: { categories: Category[]; run:
         <button type="submit" className="task-primary" disabled={busy || !draft.name.trim()}>{existing ? 'Save category' : 'Add category'}</button>
       </div>
     </form>}
+    {existing && !removing && <CategoryReminders key={draft.id} id={draft.id} />}
     {failed && <p className="task-hint" role="alert">The category change could not be saved. Check its name and try again.</p>}
   </Modal>;
 }
@@ -128,9 +132,15 @@ export function TaskWorkspace() {
   useEffect(() => {
     const refresh = () => { void run(); };
     refresh();
+    const updates = listen('kairos-reminders', refresh);
+    const opens = listen<string>('kairos-open-task', (event) => { refresh(); setDetailId(event.payload); });
     const timer = window.setInterval(refresh, 30_000);
     window.addEventListener('focus', refresh);
-    return () => { window.clearInterval(timer); window.removeEventListener('focus', refresh); };
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+      for (const registration of [updates, opens]) void registration.then((unlisten) => unlisten(), () => undefined);
+    };
   }, [run]);
 
   useEffect(() => {
@@ -219,6 +229,7 @@ export function TaskWorkspace() {
         {(archives.skipped.length > 0 || view === 'skipped') && <button type="button" aria-pressed={view === 'skipped'} onClick={() => setView(view === 'skipped' ? 'tasks' : 'skipped')}>{view === 'skipped' ? 'Tasks' : 'Skipped'}</button>}
         <button type="button" aria-expanded={filterOpen} onClick={() => setFilterOpen(!filterOpen)}>Filter{(filterCategory || priorityFilter) && ' ·'}</button>
         <button type="button" onClick={() => setCategoriesOpen(true)}>Categories</button>
+        <ReminderHub openTask={setDetailId} completeTask={(id) => run({ kind: 'setCompleted', id, completed: true })} />
         <select aria-label="Task order" value={board.sortMode} onChange={(event) => void run({ kind: 'setSort', mode: event.target.value as SortMode })}>
           <option value="automatic">Automatic</option><option value="manual">Manual</option>
         </select>

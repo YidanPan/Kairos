@@ -7,6 +7,7 @@
 | 2 · Visual interface | Implemented. Single-display verification passed. The user approved deferring dual-display verification so Phase 3 can proceed. |
 | 3 · Core task management | Passed. The core task board was verified in an isolated Windows desktop profile. |
 | 4 · Advanced task features | Passed. Subtasks, recurrence, completed history, and Trash were verified in an isolated Windows desktop profile. |
+| 5 · Notifications | Implemented. The scheduler, inbox, WAV preview, and Windows toast display passed checks. Native button activation and actual suspend/resume verification are pending. |
 
 ## Phase 1 verification
 
@@ -39,3 +40,10 @@ Status **PASS** for Phases 3 and 4.
 - Verified recurrence edit scopes, skipping, stopping a series, completed search and date browsing, batch restoration, the permanent-deletion confirmation, and reversible clearing of Completed.
 - Restarted the isolated Windows application and verified that completed and skipped occurrences and their subtasks persisted. SQLite schema version 4, integrity, and foreign-key checks passed. Migration and regression tests preserve Phase 3 data and behavior.
 - All nine frontend tests and 18 Rust tests passed. ESLint, TypeScript, Rust formatting, and the optimized Windows build passed.
+
+## Phase 5 verification
+
+- Added multiple per-task reminders, deadline offsets, category defaults, custom dates, snooze, quiet periods, DND exceptions, and custom WAV playback.
+- All nine frontend tests and 25 Rust tests passed. The optimized Windows build and the isolated NSIS installation succeeded.
+- The isolated Windows build verified DND deferral and aggregation, persisted snooze, inbox actions, and WAV playback. Windows accepted and displayed a native toast with the installed application's identity. The app reports Windows delivery failures in its durable reminder inbox.
+- A time-jump test verified missed-reminder recovery. Actual hardware resume and the Windows notification action buttons still need verification.

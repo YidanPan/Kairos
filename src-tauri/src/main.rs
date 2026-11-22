@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod panel;
+mod reminders;
 mod storage;
 mod tasks;
 
@@ -31,7 +32,12 @@ async fn storage_info(app: tauri::AppHandle) -> Result<StorageInfo, String> {
 
 fn main() {
     tauri::Builder::default()
-        .setup(panel::setup)
+        .setup(|app| {
+            reminders::identify(app.handle());
+            panel::setup(app)?;
+            reminders::start(app.handle().clone());
+            Ok(())
+        })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
@@ -46,6 +52,7 @@ fn main() {
             panel::save_panel_preferences,
             panel::set_panel_backdrop,
             tasks::task_board,
+            reminders::reminder_state,
         ])
         .run(tauri::generate_context!())
         .expect("Kairos could not start");

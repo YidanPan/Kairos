@@ -258,3 +258,12 @@ button:disabled { cursor: default; opacity: .6; }
 @media (prefers-reduced-motion: reduce) {
   .panel { transition: none; }
 }
+
+.reminder-choices { display: flex; flex-wrap: wrap; gap: 6px 9px; margin: 5px 0; font-size: .78rem; }
+.task-form .reminder-choices label, .reminder-choices label, .task-form .inline-check { display: flex; align-items: center; gap: 4px; }
+.reminder-choices input[type="checkbox"], .inline-check input[type="checkbox"] { accent-color: var(--text); min-height: 0; }
+.quiet-period { border: 1px solid var(--border); border-radius: 7px; margin: 0; padding: 7px; }
+.quiet-period > button { margin-top: 5px; }
+.reminder-notice { padding: 8px 0; border-top: 1px solid var(--border); }
+.reminder-notice h3 { font-size: .87rem; margin: 0; }
+.reminder-notice .task-actions { font-size: .76rem; margin: 5px 0; }

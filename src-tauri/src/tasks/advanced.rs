@@ -220,6 +220,7 @@ fn advance(
         params![id, next.to_string(), due, series],
     ).map_err(db_error)?;
     tx.execute("INSERT INTO subtasks(id,task_id,title,position) SELECT lower(hex(randomblob(16))),?1,title,position FROM subtasks WHERE task_id=?2", params![id,source]).map_err(db_error)?;
+    crate::reminders::inherit(tx, source, &id)?;
     Ok(())
 }
 

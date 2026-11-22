@@ -1,29 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import { useState } from 'react';
+import { Modal } from './TaskModal';
 import { ScopeOptions, TaskAdvanced } from './TaskAdvanced';
+import { TaskReminders } from './ReminderControls';
 import { localDay, priorities } from './taskModel';
 import type { Category, Change, EditScope, ScheduleChange, Subtask, Task, TaskAction } from './taskModel';
-
-export function Modal({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => { ref.current?.showModal(); }, []);
-
-  function close() {
-    if (document.activeElement instanceof HTMLElement && ref.current?.contains(document.activeElement)) {
-      document.activeElement.blur();
-    }
-    onClose();
-  }
-
-  return <dialog ref={ref} className="task-modal" aria-label={title}
-    onCancel={(event) => { event.preventDefault(); close(); }}
-    onClick={(event) => { if (event.target === ref.current) close(); }}>
-    <div className="task-modal-content">
-      <header className="task-modal-header"><h2>{title}</h2><button type="button" onClick={close} aria-label="Close dialog">×</button></header>
-      {children}
-    </div>
-  </dialog>;
-}
 
 export function CategoryOptions({ categories, empty }: { categories: Category[]; empty: string }) {
   return <><option value="">{empty}</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</>;
@@ -89,6 +69,7 @@ export function TaskDetails({ task, categories, history, subtasks, run, onClose 
       {history.length > 0 && <details className="task-history"><summary>Schedule history</summary><ul>
         {history.map((entry, index) => <li key={`${entry.changedAt}-${index}`}>{entry.previousDate} → {entry.nextDate ?? 'No Date'}{entry.automatic && ' · Rescheduled'}</li>)}
       </ul></details>}
+      {!task.completedAt && !readOnly && <TaskReminders key={task.id} task={task} />}
       <TaskAdvanced task={task} subtasks={subtasks} run={run} onClose={onClose} />
     </div>
   </Modal>;

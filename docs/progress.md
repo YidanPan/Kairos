@@ -7,9 +7,9 @@
 | 2 · Visual interface | Implemented. Single-display verification passed. The user approved deferring dual-display verification so Phase 3 can proceed. |
 | 3 · Core task management | Passed. The core task board was verified in an isolated Windows desktop profile. |
 | 4 · Advanced task features | Passed. Subtasks, recurrence, completed history, and Trash were verified in an isolated Windows desktop profile. |
-| 5 · Notifications | Implemented. The scheduler, inbox, WAV preview, Windows toast display, and native Complete action passed checks. Native Snooze, Open Task, and actual suspend/resume verification are pending. |
+| 5 · Notifications | Implemented. The scheduler, inbox, WAV preview, Windows toast display, native Complete, and opening reminder options from a toast passed checks. A direct Open Task button click and actual suspend/resume verification are pending. |
 | 6 · Statistics and search | Passed Phase 6 checks. Group 3 remains open for the two outstanding Phase 5 Windows checks. |
-| 7 · System integration | Implemented and tested on the local branch. Windows sign-in and direct interaction with the system tray menu still need a manual check. |
+| 7 · System integration | Implemented and tested on the local branch. Tray menu commands passed the native Windows integration test. Actual Windows sign-in still needs a manual check. |
 | 8 · Backup and release | Implemented. The isolated Windows installation, backup, restore, upgrade and uninstall checks passed. The v1.0.0 installer is built locally. |
 
 ## Phase 1 verification
@@ -51,8 +51,9 @@ Status **PASS** for Phases 3 and 4.
 - The isolated Windows build verified DND deferral and aggregation, persisted snooze, inbox actions, and WAV playback. Windows accepted and displayed a native toast with the installed application's identity. The app reports Windows delivery failures in its durable reminder inbox.
 - A time-jump test verified missed-reminder recovery. Actual hardware resume still needs verification.
 - In the isolated v1.0.0 install, the tester confirmed seeing the Windows notifications. The dedicated Complete task acquired a completion timestamp after the tester clicked the notification. Snooze and Open Task require separate confirmation.
-- During the next Windows test, two notifications disappeared without opening a panel. The installer now associates toast actions with an app-specific URI. Windows URI dispatch opened the matching Snooze panel, saved the five-minute preset, and completed the intended task. A cold launch opened the requested task after the interface loaded. Direct Notification Center retesting of Snooze and Open Task is pending. All 33 Rust tests and 11 frontend tests passed after the repair.
+- During the next Windows test, two notifications disappeared without opening a panel. The installer now associates toast actions with an app-specific URI. Windows URI dispatch opened the matching Snooze panel, saved the five-minute preset, and completed the intended task. A cold launch opened the requested task after the interface loaded. All 33 Rust tests and 11 frontend tests passed after the repair.
 - Two later notification clicks followed the Complete route. The notification body and first button now open reminder options, with the matching reminder at the top. The dedicated Open Task and Complete buttons remain on the expanded notification.
+- A subsequent user click in Notification Center opened the matching reminder and its Snooze choices. The isolated app recorded the same reminder title in its open options panel. The expanded Open Task button still needs a direct click check.
 - Suspended the isolated Kairos process on Windows 11 before two reminders became due, then resumed it. Windows accepted one notification for both reminders. After two more scheduler polls, the database still held exactly two receipts, the future reminder remained scheduled, and the completed and trashed controls produced no notifications.
 
 ## Phase 6 verification
@@ -66,7 +67,8 @@ Status **PASS** for Phases 3 and 4.
 - Verified Desktop and Always on Top modes, Smart mode's whitelist, and dropping and restoring topmost state when a foreground Windows application entered and left fullscreen.
 - From a second Windows app, verified the global New Task, Search, Settings, Show/Hide, and Restore Mouse Interaction shortcuts. The initially chosen settings chord was already registered. `Ctrl+Alt+Shift+S` registered and opened Settings successfully.
 - Verified that the close button hid the panel while Windows accepted a background reminder. Starting a second copy exited the new process and restored the original window. Restarting preserved the selected startup page and window preferences, and reset click-through.
-- Verified that the launch-at-login setting created and removed the correct current-user registry entry for the test executable. Signing out and back in and directly operating the system tray menu still need Windows desktop verification.
+- Verified that the launch-at-login setting created and removed the correct current-user registry entry for the test executable.
+- On the isolated v1.0.0 installation, Windows reported a registered notification area icon. The automated Windows test opened the app's native tray menu and dispatched its actual menu item IDs. Show Window restored the hidden panel, Restore Mouse Interaction disabled click-through, and Exit terminated the process cleanly with exit code 0. Signing out and back in remains pending.
 - ESLint, TypeScript, Rust formatting, 11 frontend tests, 28 Rust tests, and the optimized Windows build passed.
 
 ## Phase 8 verification
@@ -75,4 +77,4 @@ Status **PASS** for Phases 3 and 4.
 - Verified safety snapshots before Trash purge, Merge, and Replace. Merge restored a missing task and its subtask while preserving a locally edited task. Replace restored the historical titles and custom WAV and removed the task added afterward. The restored data was still present after relaunch.
 - Tests cover damaged-file rejection, transaction rollback on a failed restore, the 30-file rotation, duplicate task and active recurrence IDs, and remapping snooze receipts when merging reminder history.
 - Verified that the NSIS installer registered a Start menu shortcut and login startup. An install over the existing copy saved a checked snapshot and kept startup disabled. Uninstallation removed the executable and preserved the SQLite database byte for byte.
-- ESLint, TypeScript, Rust formatting, 11 frontend tests, and 31 Rust tests passed. Built the x64 NSIS installer for Kairos v1.0.0 locally. Native Snooze and Open Task, actual Windows sleep/wake, sign-in, direct tray menu interaction and the previously deferred dual-display checks remain open.
+- ESLint, TypeScript, Rust formatting, 11 frontend tests, and 31 Rust tests passed. Built the x64 NSIS installer for Kairos v1.0.0 locally. Subsequent tests covered the tray commands and the notification body's Snooze path. The expanded Open Task button, Windows sleep/wake, sign-in, and the previously deferred dual-display checks remain open.

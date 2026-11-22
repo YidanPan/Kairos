@@ -7,7 +7,7 @@
 | 2 · Visual interface | Implemented. Single-display verification passed. The user approved deferring dual-display verification so Phase 3 can proceed. |
 | 3 · Core task management | Passed. The core task board was verified in an isolated Windows desktop profile. |
 | 4 · Advanced task features | Passed. Subtasks, recurrence, completed history, and Trash were verified in an isolated Windows desktop profile. |
-| 5 · Notifications | Implemented. The scheduler, inbox, WAV preview, and Windows toast display passed checks. Native button activation and actual suspend/resume verification are pending. |
+| 5 · Notifications | Implemented. The scheduler, inbox, WAV preview, Windows toast display, and native Complete action passed checks. Native Snooze, Open Task, and actual suspend/resume verification are pending. |
 | 6 · Statistics and search | Passed Phase 6 checks. Group 3 remains open for the two outstanding Phase 5 Windows checks. |
 | 7 · System integration | Implemented and tested on the local branch. Windows sign-in and direct interaction with the system tray menu still need a manual check. |
 | 8 · Backup and release | Implemented. The isolated Windows installation, backup, restore, upgrade and uninstall checks passed. The v1.0.0 installer is built locally. |
@@ -49,7 +49,8 @@ Status **PASS** for Phases 3 and 4.
 - Added multiple per-task reminders, deadline offsets, category defaults, custom dates, snooze, quiet periods, DND exceptions, and custom WAV playback.
 - All nine frontend tests and 25 Rust tests passed. The optimized Windows build and the isolated NSIS installation succeeded.
 - The isolated Windows build verified DND deferral and aggregation, persisted snooze, inbox actions, and WAV playback. Windows accepted and displayed a native toast with the installed application's identity. The app reports Windows delivery failures in its durable reminder inbox.
-- A time-jump test verified missed-reminder recovery. Actual hardware resume and the Windows notification action buttons still need verification.
+- A time-jump test verified missed-reminder recovery. Actual hardware resume still needs verification.
+- In the isolated v1.0.0 install, the tester confirmed seeing the Windows notifications. The dedicated Complete task acquired a completion timestamp after the tester clicked the notification. Snooze and Open Task require separate confirmation.
 - Suspended the isolated Kairos process on Windows 11 before two reminders became due, then resumed it. Windows accepted one notification for both reminders. After two more scheduler polls, the database still held exactly two receipts, the future reminder remained scheduled, and the completed and trashed controls produced no notifications.
 
 ## Phase 6 verification
@@ -72,4 +73,4 @@ Status **PASS** for Phases 3 and 4.
 - Verified safety snapshots before Trash purge, Merge, and Replace. Merge restored a missing task and its subtask while preserving a locally edited task. Replace restored the historical titles and custom WAV and removed the task added afterward. The restored data was still present after relaunch.
 - Tests cover damaged-file rejection, transaction rollback on a failed restore, the 30-file rotation, duplicate task and active recurrence IDs, and remapping snooze receipts when merging reminder history.
 - Verified that the NSIS installer registered a Start menu shortcut and login startup. An install over the existing copy saved a checked snapshot and kept startup disabled. Uninstallation removed the executable and preserved the SQLite database byte for byte.
-- ESLint, TypeScript, Rust formatting, 11 frontend tests, and 31 Rust tests passed. Built the x64 NSIS installer for Kairos v1.0.0 locally. Native notification buttons, actual Windows sleep/wake, sign-in, direct tray menu interaction and the previously deferred dual-display checks remain open.
+- ESLint, TypeScript, Rust formatting, 11 frontend tests, and 31 Rust tests passed. Built the x64 NSIS installer for Kairos v1.0.0 locally. Native Snooze and Open Task, actual Windows sleep/wake, sign-in, direct tray menu interaction and the previously deferred dual-display checks remain open.

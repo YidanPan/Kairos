@@ -84,3 +84,7 @@ On revisions with NSIS bundling enabled, **npm run tauri build** creates the ins
 - [Product requirements](PRD.md)
 - [Development workflow](DEVELOPMENT_RULES.md)
 - [Issues](https://github.com/YidanPan/Kairos/issues)
+
+## License
+
+Kairos is available under the [MIT License](LICENSE).

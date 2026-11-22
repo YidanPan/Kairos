@@ -51,6 +51,8 @@ Status **PASS** for Phases 3 and 4.
 - The isolated Windows build verified DND deferral and aggregation, persisted snooze, inbox actions, and WAV playback. Windows accepted and displayed a native toast with the installed application's identity. The app reports Windows delivery failures in its durable reminder inbox.
 - A time-jump test verified missed-reminder recovery. Actual hardware resume still needs verification.
 - In the isolated v1.0.0 install, the tester confirmed seeing the Windows notifications. The dedicated Complete task acquired a completion timestamp after the tester clicked the notification. Snooze and Open Task require separate confirmation.
+- During the next Windows test, two notifications disappeared without opening a panel. The installer now associates toast actions with an app-specific URI. Windows URI dispatch opened the matching Snooze panel, saved the five-minute preset, and completed the intended task. A cold launch opened the requested task after the interface loaded. Direct Notification Center retesting of Snooze and Open Task is pending. All 33 Rust tests and 11 frontend tests passed after the repair.
+- Two later notification clicks followed the Complete route. The notification body and first button now open reminder options, with the matching reminder at the top. The dedicated Open Task and Complete buttons remain on the expanded notification.
 - Suspended the isolated Kairos process on Windows 11 before two reminders became due, then resumed it. Windows accepted one notification for both reminders. After two more scheduler polls, the database still held exactly two receipts, the future reminder remained scheduled, and the completed and trashed controls produced no notifications.
 
 ## Phase 6 verification

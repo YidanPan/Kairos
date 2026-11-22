@@ -23,7 +23,8 @@ use windows::{
     },
 };
 
-use super::{activated, Notice, Result};
+use super::{activated, activation, Notice, Result};
+use activation::Action;
 
 static CALLBACK_GENERATION: AtomicUsize = AtomicUsize::new(0);
 
@@ -39,20 +40,28 @@ pub(super) fn set_identity(identifier: &str) -> Result<()> {
 
 pub(super) struct Toasts {
     initialized: bool,
+    protocol: Option<String>,
     live: VecDeque<(ToastNotification, i64)>,
 }
 
 impl Toasts {
-    pub(super) fn new() -> Self {
+    pub(super) fn new(app: &AppHandle) -> Self {
         // The reminder worker owns its own WinRT apartment.
         let initialized = unsafe { RoInitialize(RO_INIT_MULTITHREADED) }.is_ok();
         Self {
             initialized,
+            protocol: registered_protocol(app),
             live: VecDeque::new(),
         }
     }
 
-    pub(super) fn show(&mut self, app: &AppHandle, notice: Notice, custom: bool) -> Result<()> {
+    pub(super) fn show(
+        &mut self,
+        app: &AppHandle,
+        database: &rusqlite::Connection,
+        notice: Notice,
+        custom: bool,
+    ) -> Result<()> {
         if !self.initialized {
             return Err("Windows notification runtime could not initialize.".into());
         }
@@ -69,12 +78,29 @@ impl Toasts {
             }
         }
         let document = XmlDocument::new().map_err(|error| error.to_string())?;
-        let payload = toast_xml(&notice, custom);
+        let link = self
+            .protocol
+            .as_ref()
+            .map(|scheme| {
+                activation::issue(database, notice.id, chrono::Local::now().timestamp()).map(
+                    |token| activation::Link {
+                        scheme: scheme.clone(),
+                        token,
+                    },
+                )
+            })
+            .transpose()?;
+        let payload = toast_xml(&notice, custom, link.as_ref());
         document
             .LoadXml(&HSTRING::from(payload))
             .map_err(|error| error.to_string())?;
         let toast = ToastNotification::CreateToastNotification(&document)
             .map_err(|error| error.to_string())?;
+        if link.is_some() {
+            return notifier
+                .Show(&toast)
+                .map_err(|error| format!("Show Windows toast: {error}"));
+        }
         let app = app.clone();
         let generation = CALLBACK_GENERATION.load(Ordering::Relaxed);
         let listener = TypedEventHandler::<ToastNotification, IInspectable>::new(
@@ -112,6 +138,16 @@ impl Toasts {
     }
 }
 
+fn registered_protocol(app: &AppHandle) -> Option<String> {
+    let scheme = activation::scheme(&app.config().identifier);
+    let key = windows_registry::CURRENT_USER
+        .open(format!(r"Software\Classes\{scheme}\shell\open\command"))
+        .ok()?;
+    let command = key.get_string("").ok()?;
+    let expected = format!("\"{}\" \"%1\"", std::env::current_exe().ok()?.display());
+    command.eq_ignore_ascii_case(&expected).then_some(scheme)
+}
+
 impl Drop for Toasts {
     fn drop(&mut self) {
         for (toast, token) in self.live.drain(..) {
@@ -140,7 +176,7 @@ fn escape(value: &str) -> String {
         })
 }
 
-fn toast_xml(notice: &Notice, custom: bool) -> String {
+fn toast_xml(notice: &Notice, custom: bool, link: Option<&activation::Link>) -> String {
     let body = if notice.count > 1 {
         format!("{} reminders due", notice.count)
     } else {
@@ -156,11 +192,19 @@ fn toast_xml(notice: &Notice, custom: bool) -> String {
     } else {
         ""
     };
-    format!(
-        "<toast launch=\"open\"><visual><binding template=\"ToastGeneric\"><text>{}</text><text>{}</text>{deadline}</binding></visual><actions>\
-         <action content=\"Complete\" arguments=\"complete\"/><action content=\"Snooze\" arguments=\"snooze\"/><action content=\"Open Task\" arguments=\"open\"/></actions>{audio}</toast>",
-        escape(&notice.title),body
-    )
+    let argument = |action: Action| {
+        escape(&link.map_or_else(|| action.name().into(), |link| link.uri(action)))
+    };
+    let activation = if link.is_some() {
+        " activationType=\"protocol\""
+    } else {
+        ""
+    };
+    let open = argument(Action::Open);
+    let complete = argument(Action::Complete);
+    let snooze = argument(Action::Snooze);
+    format!("<toast launch=\"{snooze}\"{activation}><visual><binding template=\"ToastGeneric\"><text>{}</text><text>{body}</text>{deadline}</binding></visual><actions>\
+         <action content=\"Snooze\" arguments=\"{snooze}\"{activation}/><action content=\"Open Task\" arguments=\"{open}\"{activation}/><action content=\"Complete\" arguments=\"{complete}\"{activation}/></actions>{audio}</toast>", escape(&notice.title))
 }
 
 pub(super) fn play(directory: &Path, sound: &[u8]) -> Result<()> {
@@ -200,13 +244,33 @@ mod tests {
             silent: true,
             native_status: "pending".into(),
         };
-        let xml = toast_xml(&notice, false);
+        let xml = toast_xml(&notice, false, None);
         assert!(xml.contains("A &lt; B &amp; C"));
         assert!(!xml.contains('\u{0001}'));
         assert!(xml.contains("2 reminders due"));
         assert!(xml.contains("silent=\"true\""));
         for target in ["complete", "snooze", "open"] {
             assert!(xml.contains(&format!("arguments=\"{target}\"")));
+        }
+        let link = activation::Link {
+            scheme: activation::scheme("app.kairos.test"),
+            token: "1".repeat(32),
+        };
+        let xml = toast_xml(&notice, false, Some(&link));
+        assert!(xml.contains(&format!(
+            "launch=\"{}\" activationType=\"protocol\"",
+            link.uri(Action::Snooze)
+        )));
+        assert!(xml.contains("<actions><action content=\"Snooze\""));
+        for (action, label) in [
+            (Action::Complete, "Complete"),
+            (Action::Snooze, "Snooze"),
+            (Action::Open, "Open Task"),
+        ] {
+            assert!(xml.contains(&format!(
+                "content=\"{label}\" arguments=\"{}\" activationType=\"protocol\"",
+                link.uri(action)
+            )));
         }
     }
 }

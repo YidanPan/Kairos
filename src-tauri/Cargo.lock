@@ -2098,8 +2098,10 @@ dependencies = [
  "tauri-plugin-global-shortcut",
  "tauri-plugin-single-instance",
  "tempfile",
+ "uuid",
  "window-vibrancy",
  "windows",
+ "windows-registry",
 ]
 
 [[package]]

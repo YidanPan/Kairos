@@ -19,6 +19,9 @@ Var KairosHasData
 !macroend
 
 !macro NSIS_HOOK_POSTINSTALL
+  WriteRegStr HKCU "Software\Classes\kairos-notify-${BUNDLEID}" "" "URL:Kairos reminder"
+  WriteRegStr HKCU "Software\Classes\kairos-notify-${BUNDLEID}" "URL Protocol" ""
+  WriteRegStr HKCU "Software\Classes\kairos-notify-${BUNDLEID}\shell\open\command" "" '$\"$INSTDIR\${MAINBINARYNAME}.exe$\" $\"%1$\"'
   ${If} $KairosHasData = "0"
     WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${BUNDLEID}" '$\"$INSTDIR\${MAINBINARYNAME}.exe$\"'
   ${EndIf}
@@ -26,6 +29,7 @@ Var KairosHasData
 
 !macro NSIS_HOOK_POSTUNINSTALL
   ${If} $UpdateMode <> 1
+    DeleteRegKey HKCU "Software\Classes\kairos-notify-${BUNDLEID}"
     DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${BUNDLEID}"
   ${EndIf}
 !macroend

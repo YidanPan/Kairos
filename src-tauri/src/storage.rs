@@ -11,6 +11,7 @@ const MIGRATIONS: &[&str] = &[
     include_str!("../migrations/005_reminders.sql"),
     include_str!("../migrations/006_statistics.sql"),
     include_str!("../migrations/007_data.sql"),
+    include_str!("../migrations/008_notification_activation.sql"),
 ];
 
 #[derive(Debug)]

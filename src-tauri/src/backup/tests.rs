@@ -72,7 +72,24 @@ fn merge_keeps_current_records_and_restores_reminder_relationships_once() {
             [],
         )
         .unwrap();
+    incoming
+        .execute(
+            "INSERT INTO reminder_activation_tokens VALUES (1,'fixture',100)",
+            [],
+        )
+        .unwrap();
     let source_file = before_change(source.path()).unwrap();
+    let snapshot = read_only(&source_file).unwrap();
+    assert_eq!(
+        snapshot
+            .query_row(
+                "SELECT count(*) FROM reminder_activation_tokens",
+                [],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+        0
+    );
     let (prepared, preview) = stage(target.path(), &source_file).unwrap();
     assert_eq!(
         (

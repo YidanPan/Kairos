@@ -12,6 +12,7 @@ type Preferences = { manualDnd: Quiet; periods: Period[]; sound: Sound };
 type TaskPreferences = { overrides: boolean; allowDuringDnd: boolean; rules: Rule[] };
 type Notice = { id: number; taskId: string; title: string; deadline: string | null; createdAt: number; firstDueAt: number; count: number; nativeStatus: 'pending' | 'accepted' | 'unavailable' };
 type State = { preferences: Preferences; task: TaskPreferences; categoryOffsets: number[]; notices: Notice[]; hasCustomSound: boolean };
+type NotificationAction = { kind: 'open'; id: string } | { kind: 'snooze'; id: number };
 type Action =
   | { kind: 'savePreferences'; preferences: Preferences }
   | { kind: 'saveTask'; id: string; preferences: TaskPreferences }
@@ -163,9 +164,28 @@ export function ReminderHub({ openTask, completeTask }: { openTask: (id: string)
     };
     refresh();
     const updates = listen('kairos-reminders', refresh);
-    const snooze = listen<number>('kairos-snooze-reminder', (event) => { refresh(); setSnoozing(event.payload); setOpen(true); });
-    return () => { active = false; for (const listener of [updates, snooze]) void listener.then((unlisten) => unlisten(), () => undefined); };
-  }, []);
+    const receiveActions = () => {
+      if (!active) return;
+      void invoke<NotificationAction[]>('pending_notification_actions').then((actions) => {
+        if (!active) return;
+        for (const action of actions) {
+          if (action.kind === 'open') {
+            setOpen(false);
+            setSnoozing(undefined);
+            openTask(action.id);
+          } else {
+            refresh();
+            setSnoozing(action.id);
+            setUntil('');
+            setOpen(true);
+          }
+        }
+      }, (error: unknown) => { if (active) setProblem(errorText(error)); });
+    };
+    const activation = listen('kairos-notification-action', receiveActions);
+    void activation.then(receiveActions, () => undefined);
+    return () => { active = false; for (const listener of [updates, activation]) void listener.then((unlisten) => unlisten(), () => undefined); };
+  }, [openTask]);
 
   async function save(action: Action) {
     setProblem('');
@@ -173,7 +193,10 @@ export function ReminderHub({ openTask, completeTask }: { openTask: (id: string)
     catch (error) { setProblem(errorText(error)); return false; }
   }
 
-  const count = data?.notices.length ?? 0;
+  const notices = data?.notices ?? [];
+  const selected = notices.find((notice) => notice.id === snoozing);
+  const orderedNotices = selected ? [selected, ...notices.filter((notice) => notice.id !== selected.id)] : notices;
+  const count = notices.length;
   return <>
     <button type="button" onClick={() => {
       setOpen(true);
@@ -183,7 +206,7 @@ export function ReminderHub({ openTask, completeTask }: { openTask: (id: string)
       {problem && <p role="alert">{problem}</p>}
       {data ? <>
         {data.notices.length === 0 && <p className="task-hint">No pending reminders.</p>}
-        {data.notices.map((notice) => <section key={notice.id} className="reminder-notice">
+        {orderedNotices.map((notice) => <section key={notice.id} className="reminder-notice">
           <h3>{notice.title}</h3>
           {notice.deadline && <p className="task-hint">Due {notice.deadline}</p>}
           <p className="task-hint">{notice.count > 1 ? notice.count + ' reminders due' : 'Task reminder'}</p>

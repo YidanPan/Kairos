@@ -139,13 +139,12 @@ export function TaskWorkspace({ startupPage = 'tasks', onOpenSettings }: { start
     const refresh = () => { void run(); };
     refresh();
     const updates = listen('kairos-reminders', refresh);
-    const opens = listen<string>('kairos-open-task', (event) => { refresh(); setDetailId(event.payload); });
     const timer = window.setInterval(refresh, 30_000);
     window.addEventListener('focus', refresh);
     return () => {
       window.clearInterval(timer);
       window.removeEventListener('focus', refresh);
-      for (const registration of [updates, opens]) void registration.then((unlisten) => unlisten(), () => undefined);
+      void updates.then((unlisten) => unlisten(), () => undefined);
     };
   }, [run]);
 

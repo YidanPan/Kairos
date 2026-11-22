@@ -12,6 +12,8 @@ use crate::{storage, tasks};
 #[cfg(test)]
 mod tests;
 
+pub mod activation;
+
 #[cfg(windows)]
 mod windows;
 
@@ -564,16 +566,12 @@ fn activated(app: AppHandle, notice: Notice, action: &str) {
             });
         }
         "snooze" | "open" => {
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.unminimize();
-                let _ = window.set_focus();
-            }
-            if action == "snooze" {
-                let _ = app.emit("kairos-snooze-reminder", notice.id);
+            let action = if action == "snooze" {
+                activation::UiAction::Snooze { id: notice.id }
             } else {
-                let _ = app.emit("kairos-open-task", notice.task_id);
-            }
+                activation::UiAction::Open { id: notice.task_id }
+            };
+            activation::present(&app, action);
         }
         _ => (),
     }
@@ -599,7 +597,7 @@ pub fn start(app: AppHandle) {
             return;
         };
         #[cfg(windows)]
-        let mut toasts = windows::Toasts::new();
+        let mut toasts = windows::Toasts::new(&app);
         loop {
             let result = storage::open(&directory).map_err(|error| error.to_string()).and_then(|mut database| {
                 let notices=collect_due(&mut database, Local::now())?;
@@ -611,7 +609,7 @@ pub fn start(app: AppHandle) {
                     let custom = !notice.silent && preferences.sound==Sound::Custom;
                     let id=notice.id;
                     #[cfg(windows)]
-                    let accepted=match toasts.show(&app,notice,custom) {
+                    let accepted=match toasts.show(&app,&database,notice,custom) {
                         Ok(())=>true,
                         Err(error)=>{ eprintln!("Kairos notification delivery: {error}"); false }
                     };

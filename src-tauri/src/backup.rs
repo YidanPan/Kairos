@@ -184,6 +184,10 @@ fn snapshot(source: &Connection, dest: &Path, overwrite: bool) -> Result<()> {
     {
         let mut copy = Connection::open(pending.path()).map_err(error)?;
         copy_database(source, &mut copy)?;
+        if storage::version(&copy).map_err(error)? >= 8 {
+            copy.execute("DELETE FROM reminder_activation_tokens", [])
+                .map_err(error)?;
+        }
         check_integrity(&copy)?;
     }
     pending.as_file().sync_all().map_err(error)?;

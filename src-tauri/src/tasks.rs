@@ -217,6 +217,14 @@ pub async fn task_board(app: AppHandle, action: Option<Action>) -> BoardResult<B
     .map_err(|error| error.to_string())?
 }
 
+pub fn complete_from_reminder(
+    transaction: &Transaction<'_>,
+    id: &str,
+    today: chrono::NaiveDate,
+) -> BoardResult<()> {
+    advanced::set_completed(transaction, id, true, today)
+}
+
 fn board(
     connection: &mut Connection,
     action: Option<Action>,

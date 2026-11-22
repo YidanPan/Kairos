@@ -53,9 +53,11 @@ fn main() {
     let builder = tauri::Builder::default();
     #[cfg(windows)]
     let builder = builder
-        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
-            if let Err(error) = integration::show(app, None) {
-                eprintln!("Could not restore Kairos: {error}");
+        .plugin(tauri_plugin_single_instance::init(|app, args, _| {
+            if !reminders::activation::handle_launch(app, &args) {
+                if let Err(error) = integration::show(app, None) {
+                    eprintln!("Could not restore Kairos: {error}");
+                }
             }
         }))
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
@@ -66,6 +68,12 @@ fn main() {
             panel::setup(app)?;
             integration::setup(app.handle())?;
             app.manage(backup::BackupState::default());
+            app.manage(reminders::activation::UiQueue::default());
+            #[cfg(windows)]
+            reminders::activation::handle_launch(
+                app.handle(),
+                &std::env::args().collect::<Vec<_>>(),
+            );
             backup::start(app.handle());
             reminders::start(app.handle().clone());
             Ok(())
@@ -96,6 +104,7 @@ fn main() {
             panel::set_panel_backdrop,
             tasks::task_board,
             reminders::reminder_state,
+            reminders::activation::pending_notification_actions,
         ])
         .run(context)
         .expect("Kairos could not start");

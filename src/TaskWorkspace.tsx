@@ -7,7 +7,8 @@ import { CategoryOptions, TaskDetails } from './TaskDetails';
 import { Modal } from './TaskModal';
 import { TaskHistory } from './TaskHistory';
 import type { HistoryKind } from './TaskHistory';
-import { groupTasks, isOverdue, localDay, moveTask, priorities, sections, taskStatus } from './taskModel';
+import { DailyProgress, TaskStatistics } from './TaskStatistics';
+import { activeTasks, emptyFilters, filterTasks, groupTasks, isOverdue, localDay, moveTask, priorities, sections, taskSection, taskStatus } from './taskModel';
 import type { Board, Category, Priority, Section, SortMode, Subtask, Task, TaskAction } from './taskModel';
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
@@ -98,7 +99,7 @@ function TaskRow({ task, category, subtasks, now, manual, onOpen, onToggle, onDr
   </li>;
 }
 
-export function TaskWorkspace() {
+export function TaskWorkspace({ onOpenSettings }: { onOpenSettings: () => void }) {
   const [board, setBoard] = useState<Board>();
   const [now, setNow] = useState(() => new Date());
   const [error, setError] = useState('');
@@ -106,13 +107,17 @@ export function TaskWorkspace() {
   const [newTitle, setNewTitle] = useState('');
   const [saving, setSaving] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [statisticsOpen, setStatisticsOpen] = useState(false);
   const [detailId, setDetailId] = useState<string>();
   const [view, setView] = useState<'tasks' | HistoryKind>('tasks');
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('');
+  const [filters, setFilters] = useState(emptyFilters);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const queue = useRef(Promise.resolve());
   const addInput = useRef<HTMLInputElement>(null);
+  const searchInput = useRef<HTMLInputElement>(null);
+  const moreMenu = useRef<HTMLDetailsElement>(null);
 
   const run = useCallback((action?: TaskAction) => {
     const result = queue.current.then(async () => {
@@ -148,11 +153,23 @@ export function TaskWorkspace() {
   }, [quickAdd]);
 
   useEffect(() => {
+    if (searchOpen && view === 'tasks') searchInput.current?.focus();
+  }, [searchOpen, view]);
+
+  useEffect(() => {
     const open = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.key.toLowerCase() === 'n' && !document.querySelector('dialog[open]')) {
+      if (!event.ctrlKey || document.querySelector('dialog[open]')) return;
+      const key = event.key.toLowerCase();
+      if (key === 'n') {
         event.preventDefault();
         setQuickAdd(true);
         addInput.current?.focus();
+      }
+      if (key === 'f') {
+        event.preventDefault();
+        setView('tasks');
+        setSearchOpen(true);
+        searchInput.current?.focus();
       }
     };
     window.addEventListener('keydown', open);
@@ -178,13 +195,14 @@ export function TaskWorkspace() {
 
   const detail = board.tasks.find((task) => task.id === detailId);
   const categoriesById = new Map(board.categories.map((category) => [category.id, category]));
-  const filterCategory = categoriesById.has(categoryFilter) ? categoryFilter : '';
-  const matchesFilter = (task: Task) => (!filterCategory || task.categoryId === filterCategory) && (!priorityFilter || task.priority === priorityFilter);
-  const active = board.tasks.filter((task) => !task.completedAt && !task.trashedAt && !task.skippedAt);
-  const visible = active.filter(matchesFilter);
+  const filterCategory = categoriesById.has(filters.categoryId) ? filters.categoryId : '';
+  const currentFilters = { ...filters, categoryId: filterCategory };
+  const filtering = Object.values(currentFilters).some(Boolean);
+  const visible = filterTasks(board.tasks, query, currentFilters, now);
   const grouped = groupTasks(visible, board.sortMode, now);
+  const totalToday = board.statistics.completedToday + activeTasks(board.tasks).filter((task) => taskSection(task, now) === 'Today').length;
   const archives = {
-    completed: board.tasks.filter((task) => task.completedAt && !task.trashedAt && matchesFilter(task)),
+    completed: board.tasks.filter((task) => task.completedAt && !task.trashedAt),
     trash: board.tasks.filter((task) => task.trashedAt),
     skipped: board.tasks.filter((task) => task.skippedAt && !task.trashedAt),
   };
@@ -197,6 +215,11 @@ export function TaskWorkspace() {
   const hour = now.getHours();
   const greeting = hour < 12 ? 'Good morning.' : hour < 18 ? 'Good afternoon.' : 'Good evening.';
   const today = localDay(now);
+
+  function chooseMore(action: () => void) {
+    if (moreMenu.current) moreMenu.current.open = false;
+    action();
+  }
 
   function reorder(section: Section, source: string, target: string) {
     const ids = moveTask(grouped[section], source, target, now);
@@ -223,23 +246,52 @@ export function TaskWorkspace() {
           onKeyDown={(event) => { if (event.key === 'Escape') { setQuickAdd(false); setNewTitle(''); } }} />
         <button type="submit" disabled={saving || !newTitle.trim()}>Add</button>
       </form>}
+      <DailyProgress completed={board.statistics.completedToday} total={totalToday} />
       <div className="task-controls">
-        <button type="button" aria-pressed={view === 'completed'} onClick={() => setView(view === 'completed' ? 'tasks' : 'completed')}>{view === 'completed' ? 'Tasks' : 'Completed'}</button>
-        <button type="button" aria-pressed={view === 'trash'} onClick={() => setView(view === 'trash' ? 'tasks' : 'trash')}>{view === 'trash' ? 'Tasks' : 'Trash'}</button>
-        {(archives.skipped.length > 0 || view === 'skipped') && <button type="button" aria-pressed={view === 'skipped'} onClick={() => setView(view === 'skipped' ? 'tasks' : 'skipped')}>{view === 'skipped' ? 'Tasks' : 'Skipped'}</button>}
-        <button type="button" aria-expanded={filterOpen} onClick={() => setFilterOpen(!filterOpen)}>Filter{(filterCategory || priorityFilter) && ' ·'}</button>
-        <button type="button" onClick={() => setCategoriesOpen(true)}>Categories</button>
+        {view === 'tasks' ? <>
+          <button type="button" aria-expanded={searchOpen} onClick={() => {
+            if (searchOpen) setQuery('');
+            setSearchOpen(!searchOpen);
+          }}>Search</button>
+          <div className="task-filter-anchor">
+            <button type="button" aria-expanded={filterOpen} aria-controls="task-filters" onClick={() => setFilterOpen(!filterOpen)}>Filter{filtering && ' ·'}</button>
+            <div id="task-filters" className="task-control-filters" role="group" aria-label="Task filters" hidden={!filterOpen}
+              onKeyDown={(event) => { if (event.key === 'Escape') setFilterOpen(false); }}>
+              <label>Category<select aria-label="Filter by category" value={filterCategory} onChange={(event) => setFilters({ ...filters, categoryId: event.target.value })}><CategoryOptions categories={board.categories} empty="All categories" /></select></label>
+              <label>Priority<select aria-label="Filter by priority" value={filters.priority} onChange={(event) => setFilters({ ...filters, priority: event.target.value as Priority | '' })}>
+                <option value="">All priorities</option>{priorities.map((priority) => <option key={priority} value={priority}>{priority[0].toUpperCase() + priority.slice(1)}</option>)}
+              </select></label>
+              <label>Scheduled date<input type="date" value={filters.scheduledDate} onChange={(event) => setFilters({ ...filters, scheduledDate: event.target.value })} /></label>
+              <label>Due date<input type="date" value={filters.dueDate} onChange={(event) => setFilters({ ...filters, dueDate: event.target.value })} /></label>
+              <label>Overdue<select value={filters.overdue} onChange={(event) => setFilters({ ...filters, overdue: event.target.value as typeof filters.overdue })}>
+                <option value="">Any</option><option value="yes">Overdue</option><option value="no">Not overdue</option>
+              </select></label>
+              <button type="button" disabled={!filtering} onClick={() => setFilters(emptyFilters)}>Clear all</button>
+            </div>
+          </div>
+        </> : <button type="button" onClick={() => setView('tasks')}>Tasks</button>}
+        <details className="workspace-more" ref={moreMenu} onKeyDown={(event) => {
+          if (event.key === 'Escape') chooseMore(() => moreMenu.current?.querySelector('summary')?.focus());
+        }}>
+          <summary>More</summary>
+          <div className="workspace-more-actions">
+            <button type="button" onClick={() => chooseMore(() => setView('completed'))}>Completed</button>
+            <button type="button" onClick={() => chooseMore(() => setStatisticsOpen(true))}>Statistics</button>
+            <button type="button" onClick={() => chooseMore(() => setView('trash'))}>Trash</button>
+            {archives.skipped.length > 0 && <button type="button" onClick={() => chooseMore(() => setView('skipped'))}>Skipped</button>}
+            <button type="button" onClick={() => chooseMore(() => setCategoriesOpen(true))}>Categories</button>
+            <button type="button" onClick={() => chooseMore(onOpenSettings)}>Settings</button>
+          </div>
+        </details>
         <ReminderHub openTask={setDetailId} completeTask={(id) => run({ kind: 'setCompleted', id, completed: true })} />
         <select aria-label="Task order" value={board.sortMode} onChange={(event) => void run({ kind: 'setSort', mode: event.target.value as SortMode })}>
           <option value="automatic">Automatic</option><option value="manual">Manual</option>
         </select>
       </div>
-      {filterOpen && <div className="task-control-filters">
-        <select aria-label="Filter by category" value={filterCategory} onChange={(event) => setCategoryFilter(event.target.value)}><CategoryOptions categories={board.categories} empty="All categories" /></select>
-        <select aria-label="Filter by priority" value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value as Priority | '')}>
-          <option value="">All priorities</option>{priorities.map((priority) => <option key={priority} value={priority}>{priority[0].toUpperCase() + priority.slice(1)}</option>)}
-        </select>
-      </div>}
+      {searchOpen && view === 'tasks' && <input type="search" ref={searchInput} className="task-search" aria-label="Search task titles and notes" placeholder="Search tasks…"
+        value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => {
+          if (event.key === 'Escape') { setQuery(''); setSearchOpen(false); }
+        }} />}
     </div>
     {error && <p className="task-hint task-error" role="alert">{error}<button type="button" aria-label="Dismiss error" onClick={() => setError('')}>×</button></p>}
     {view === 'tasks' ? sections.map((section) => <section className="task-section" key={section}><h3>{section}</h3>
@@ -248,5 +300,6 @@ export function TaskWorkspace() {
     {detail && <TaskDetails key={detail.id} task={detail} categories={board.categories} history={board.scheduleHistory.filter((entry) => entry.taskId === detail.id)}
       subtasks={subtasksByTask.get(detail.id) ?? []} run={run} onClose={() => setDetailId(undefined)} />}
     {categoriesOpen && <Categories categories={board.categories} run={run} onClose={() => setCategoriesOpen(false)} />}
+    {statisticsOpen && <TaskStatistics statistics={board.statistics} totalToday={totalToday} run={run} onClose={() => setStatisticsOpen(false)} />}
   </div>;
 }

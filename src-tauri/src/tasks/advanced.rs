@@ -152,7 +152,7 @@ pub(super) fn set_completed(
             params![id, stamp],
         )
         .map_err(db_error)?;
-        tx.execute("INSERT INTO task_completions(task_id,completed_at,planned_on) SELECT id,completed_at,coalesce(occurrence_on,scheduled_date) FROM tasks WHERE id=?1", [id]).map_err(db_error)?;
+        tx.execute("INSERT INTO task_completions(task_id,task_key,completed_at,planned_on) SELECT id,id,completed_at,scheduled_date FROM tasks WHERE id=?1", [id]).map_err(db_error)?;
         advance(tx, id, &entry, today)?;
     } else {
         detach_if_occupied(tx, id, &entry)?;

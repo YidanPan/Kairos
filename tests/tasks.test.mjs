@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { groupTasks, isOverdue, moveTask, taskSection, taskStatus } from '../node_modules/.cache/kairos-tests/taskModel.js';
+import { emptyFilters, filterTasks, groupTasks, isOverdue, moveTask, taskSection, taskStatus } from '../node_modules/.cache/kairos-tests/taskModel.js';
 
 const now = new Date(2026, 10, 21, 14, 30);
-const task = (id, changes = {}) => ({ id, priority: 'medium', manualOrder: 0, ...changes });
+const task = (id, changes = {}) => ({ id, title: id, notes: '', priority: 'medium', manualOrder: 0, ...changes });
 
 test('scheduled dates and deadline timestamps classify tasks independently', () => {
   const sameDay = task('same', { dueDate: '2026-11-21' });
@@ -39,4 +39,36 @@ test('manual ordering preserves the overdue group and supports keyboard and drag
   assert.deepEqual(grouped['No Date'].map(({ id }) => id), ['first', 'last']);
   assert.deepEqual(moveTask(grouped['No Date'], 'first', 'last', now), ['last', 'first']);
   assert.equal(moveTask([task('late', { dueDate: '2026-11-20' }), tasks[0]], 'last', 'late', now), null);
+});
+
+test('search uses titles and notes across active task sections', () => {
+  const tasks = [
+    task('today', { title: 'Ｐｌａｎ today', scheduledDate: '2026-11-21' }),
+    task('upcoming', { notes: 'PLAN tomorrow', scheduledDate: '2026-11-22' }),
+    task('no date', { notes: 'plan someday' }),
+    task('completed', { title: 'Plan', completedAt: '2026-11-21T09:00:00Z' }),
+    task('trashed', { title: 'Plan', trashedAt: '2026-11-21T09:00:00Z' }),
+    task('skipped', { title: 'Plan', skippedAt: '2026-11-21T09:00:00Z' }),
+    task('other'),
+  ];
+  const grouped = groupTasks(filterTasks(tasks, ' plan ', emptyFilters, now), 'automatic', now);
+  assert.deepEqual(Object.values(grouped).map((items) => items.map(({ id }) => id)), [['today'], ['upcoming'], ['no date']]);
+  assert.equal(filterTasks(tasks, ' ', emptyFilters, now).length, 4);
+});
+
+test('search and category, priority, schedule, due date and overdue filters all apply', () => {
+  const matching = { notes: 'Homework', categoryId: 'study', priority: 'high', scheduledDate: '2026-11-21', dueDate: '2026-11-21', dueTime: '13:00' };
+  const tasks = [
+    task('matches', matching),
+    task('query', { ...matching, notes: '' }),
+    task('category', { ...matching, categoryId: 'home' }),
+    task('priority', { ...matching, priority: 'low' }),
+    task('schedule', { ...matching, scheduledDate: '2026-11-22' }),
+    task('due', { ...matching, dueDate: '2026-11-20' }),
+    task('overdue', { ...matching, dueTime: '15:00' }),
+  ];
+  const filters = { categoryId: 'study', priority: 'high', scheduledDate: '2026-11-21', dueDate: '2026-11-21', overdue: 'yes' };
+  assert.deepEqual(filterTasks(tasks, 'homework', filters, now).map(({ id }) => id), ['matches']);
+  assert.deepEqual(filterTasks(tasks, 'homework', { ...filters, overdue: 'no' }, now).map(({ id }) => id), ['overdue']);
+  assert.equal(filterTasks(tasks, 'homework', emptyFilters, now).length, 6);
 });

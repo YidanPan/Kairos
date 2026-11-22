@@ -21,3 +21,7 @@ Migration 004 adds one-level subtasks, recurring series, and completion events. 
 Migration 005 stores reminder preferences, per-category offsets, durable receipts, and an inbox. The worker checks active tasks every ten seconds. It groups newly due reminders by task and records receipts and inbox rows in one SQLite transaction. Suppressed reminders stay pending until quiet mode ends. Repeating tasks inherit deadline offsets and the DND exception, while one-time dates stay with the original occurrence.
 
 On Windows, the installed identifier names the WinRT toast sender. The inbox preserves each reminder when Windows rejects presentation. Opening or snoozing a native toast routes to the running Kairos window. Custom WAV playback uses the Windows audio device and mixer.
+
+Migration 006 gives completion records a stable parent ID and archives past planned dates when a task is permanently deleted. The archive stores IDs and dates. The task board calculates daily and Monday–Sunday counts from active completion records in local time. The daily total pairs those completions with the remaining tasks in Today.
+
+Streaks start on the first recorded activity date. Missed plans remain on their original days after automatic rescheduling. A day with only skipped occurrences and the selected weekly rest days are neutral. An unfinished plan breaks the streak after local midnight. Changing rest days recalculates streaks from the same completion history.

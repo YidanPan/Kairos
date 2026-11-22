@@ -8,6 +8,7 @@ const MIGRATIONS: &[&str] = &[
     include_str!("../migrations/003_tasks.sql"),
     include_str!("../migrations/004_advanced_tasks.sql"),
     include_str!("../migrations/005_reminders.sql"),
+    include_str!("../migrations/006_statistics.sql"),
 ];
 
 #[derive(Debug)]
@@ -170,14 +171,15 @@ mod tests {
         let stamp = "2026-11-21T12:00:00Z";
         connection.execute("INSERT INTO tasks(id,title,scheduled_date,completed_at) VALUES ('old','Read','2026-11-21',?1)", [stamp]).unwrap();
         migrate(&mut connection, MIGRATIONS).unwrap();
-        let (finished, planned): (String, String) = connection
+        let (finished, planned, key): (String, String, String) = connection
             .query_row(
-                "SELECT completed_at,planned_on FROM task_completions WHERE task_id='old'",
+                "SELECT completed_at,planned_on,task_key FROM task_completions WHERE task_id='old'",
                 [],
-                |row| Ok((row.get(0)?, row.get(1)?)),
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
             )
             .unwrap();
         assert_eq!(finished, stamp);
         assert_eq!(planned, "2026-11-21");
+        assert_eq!(key, "old");
     }
 }

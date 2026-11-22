@@ -49,7 +49,27 @@ export interface Board {
   scheduleHistory: ScheduleChange[];
   sortMode: SortMode;
   subtasks: Subtask[];
+  statistics: Statistics;
 }
+
+export interface Statistics {
+  completedToday: number;
+  week: { date: string; completed: number }[];
+  weeklyTotal: number;
+  currentStreak: number;
+  bestStreak: number;
+  restDays: number[];
+}
+
+export interface TaskFilters {
+  categoryId: string;
+  priority: Priority | '';
+  scheduledDate: string;
+  dueDate: string;
+  overdue: '' | 'yes' | 'no';
+}
+
+export const emptyFilters: TaskFilters = { categoryId: '', priority: '', scheduledDate: '', dueDate: '', overdue: '' };
 
 export type Change =
   | { field: 'title' | 'notes'; value: string }
@@ -64,6 +84,7 @@ export type TaskAction =
   | ({ kind: 'saveCategory' } & Category)
   | { kind: 'deleteCategory'; id: string; replacement: string | null }
   | { kind: 'setSort'; mode: SortMode }
+  | { kind: 'setRestDays'; days: number[] }
   | { kind: 'reorder'; ids: string[] }
   | { kind: 'editOccurrence'; id: string; change: Change; scope: EditScope }
   | { kind: 'saveRecurrence'; id: string; rule: RecurrenceRule | null; scope: EditScope }
@@ -88,6 +109,23 @@ export function deadline(task: Task) {
 
 export function isOverdue(task: Task, now: Date) {
   return !task.completedAt && deadline(task) <= now.getTime();
+}
+
+export function activeTasks(tasks: Task[]) {
+  return tasks.filter((task) => !task.completedAt && !task.trashedAt && !task.skippedAt);
+}
+
+export function filterTasks(tasks: Task[], query: string, filters: TaskFilters, now: Date) {
+  const searchable = (value: string) => value.normalize('NFKC').toLocaleLowerCase();
+  const term = searchable(query.trim());
+  return activeTasks(tasks).filter((task) => (
+    (!term || searchable(task.title).includes(term) || searchable(task.notes).includes(term))
+    && (!filters.categoryId || task.categoryId === filters.categoryId)
+    && (!filters.priority || task.priority === filters.priority)
+    && (!filters.scheduledDate || task.scheduledDate === filters.scheduledDate)
+    && (!filters.dueDate || task.dueDate === filters.dueDate)
+    && (!filters.overdue || isOverdue(task, now) === (filters.overdue === 'yes'))
+  ));
 }
 
 export function taskSection(task: Task, now: Date, today = localDay(now)): Section {

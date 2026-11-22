@@ -9,6 +9,7 @@ use crate::storage;
 
 mod advanced;
 mod recurrence;
+mod statistics;
 use advanced::{Scope, Subtask};
 use recurrence::Rule;
 
@@ -67,6 +68,7 @@ pub struct Board {
     schedule_history: Vec<ScheduleChange>,
     sort_mode: SortMode,
     subtasks: Vec<Subtask>,
+    statistics: statistics::Statistics,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
@@ -141,6 +143,9 @@ pub enum Action {
     },
     SetSort {
         mode: SortMode,
+    },
+    SetRestDays {
+        days: Vec<u8>,
     },
     Reorder {
         ids: Vec<String>,
@@ -218,7 +223,7 @@ fn board(
         apply(&transaction, action, now)?;
     }
     carry_forward(&transaction, now).map_err(db_error)?;
-    let result = snapshot(&transaction).map_err(db_error)?;
+    let result = snapshot(&transaction, now.date()).map_err(db_error)?;
     transaction.commit().map_err(db_error)?;
     Ok(result)
 }
@@ -246,6 +251,7 @@ fn validate_date(value: Option<&str>) -> BoardResult<()> {
 
 fn apply(tx: &Transaction<'_>, action: Action, now: NaiveDateTime) -> BoardResult<()> {
     match action {
+        Action::SetRestDays { days } => statistics::set_rest_days(tx, days)?,
         Action::Create { id, title } => {
             let title = required_text(&title, "task title")?;
             tx.execute(
@@ -412,7 +418,7 @@ fn carry_forward(tx: &Transaction<'_>, now: NaiveDateTime) -> rusqlite::Result<(
     Ok(())
 }
 
-fn snapshot(tx: &Transaction<'_>) -> rusqlite::Result<Board> {
+fn snapshot(tx: &Transaction<'_>, today: chrono::NaiveDate) -> rusqlite::Result<Board> {
     let mut task_query = tx.prepare("SELECT t.id,t.title,t.category_id,t.priority,t.scheduled_date,t.due_date,t.due_time,t.notes,t.created_at,t.completed_at,t.trashed_at,t.rescheduled_on,t.manual_order,t.series_id,t.origin_series_id,t.occurrence_on,t.skipped_at,s.rule
         FROM tasks t LEFT JOIN recurrence_series s ON s.id=t.series_id ORDER BY t.manual_order,t.created_at DESC,t.id")?;
     let tasks = task_query
@@ -480,5 +486,6 @@ fn snapshot(tx: &Transaction<'_>) -> rusqlite::Result<Board> {
         schedule_history,
         sort_mode,
         subtasks: advanced::subtasks(tx)?,
+        statistics: statistics::read(tx, today)?,
     })
 }

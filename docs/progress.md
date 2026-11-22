@@ -8,6 +8,7 @@
 | 3 · Core task management | Passed. The core task board was verified in an isolated Windows desktop profile. |
 | 4 · Advanced task features | Passed. Subtasks, recurrence, completed history, and Trash were verified in an isolated Windows desktop profile. |
 | 5 · Notifications | Implemented. The scheduler, inbox, WAV preview, and Windows toast display passed checks. Native button activation and actual suspend/resume verification are pending. |
+| 6 · Statistics and search | Passed Phase 6 checks. Group 3 remains open for the two outstanding Phase 5 Windows checks. |
 
 ## Phase 1 verification
 
@@ -47,3 +48,9 @@ Status **PASS** for Phases 3 and 4.
 - All nine frontend tests and 25 Rust tests passed. The optimized Windows build and the isolated NSIS installation succeeded.
 - The isolated Windows build verified DND deferral and aggregation, persisted snooze, inbox actions, and WAV playback. Windows accepted and displayed a native toast with the installed application's identity. The app reports Windows delivery failures in its durable reminder inbox.
 - A time-jump test verified missed-reminder recovery. Actual hardware resume and the Windows notification action buttons still need verification.
+
+## Phase 6 verification
+
+- The isolated Windows build verified Ctrl+F, title and notes matches grouped by Today, Upcoming, and No Date, exclusion of archived tasks, all five filters together, and clearing filters while retaining the search.
+- Verified the More menu, Today progress, a Monday–Sunday chart, and saving two weekly rest days. Relaunching preserved the rest days and both parent completions, including a parent completed through its final subtask.
+- All 11 frontend tests and 28 Rust tests passed. Tests cover automatic carry-forward, skipped occurrences, empty days, rest days, restoring tasks, and retaining statistics after permanent deletion. ESLint, TypeScript, Rust formatting, and the optimized Windows build passed.

@@ -166,7 +166,7 @@ export function App() {
               </select>
             </label>
           </section>
-          {isDesktop && storage.status === 'ready' && <TaskWorkspace />}
+          {isDesktop && storage.status === 'ready' && <TaskWorkspace onOpenSettings={() => setSettingsOpen(true)} />}
         </div>
       </div>
       {panelWindow && resizeHandles.map((direction) => (

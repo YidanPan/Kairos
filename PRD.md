@@ -382,11 +382,11 @@ Primary interaction:
 New task defaults:
 - Priority: Medium.
 - Category: None.
-- Scheduled Date: None.
+- Scheduled Date: Today, using the local calendar date.
 - Due Date: None.
 - Reminders: None unless inherited from a selected category.
 
-New tasks without a Scheduled Date enter No Date.
+New tasks appear in Today. Clearing a task's Scheduled Date moves it to No Date when it has no overdue deadline.
 
 Do not force users to complete a form when creating a task.
 

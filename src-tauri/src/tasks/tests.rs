@@ -36,7 +36,10 @@ fn quick_add_defaults_and_edits_survive_reopening() {
     let mut database = storage::open(directory.path()).unwrap();
     let initial = run(&mut database, create("task"));
     assert_eq!(initial.tasks[0].priority, "medium");
-    assert!(initial.tasks[0].scheduled_date.is_none());
+    assert_eq!(
+        initial.tasks[0].scheduled_date.as_deref(),
+        Some("2026-11-21")
+    );
     assert!(initial.tasks[0].due_date.is_none());
     assert!(initial.tasks[0].category_id.is_none());
 

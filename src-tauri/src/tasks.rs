@@ -269,8 +269,8 @@ fn apply(tx: &Transaction<'_>, action: Action, now: NaiveDateTime) -> BoardResul
         Action::Create { id, title } => {
             let title = required_text(&title, "task title")?;
             tx.execute(
-                "INSERT INTO tasks(id,title,manual_order) VALUES (?1,?2,(SELECT coalesce(min(manual_order),0)-1 FROM tasks)) ON CONFLICT(id) DO NOTHING",
-                params![id, title],
+                "INSERT INTO tasks(id,title,scheduled_date,manual_order) VALUES (?1,?2,?3,(SELECT coalesce(min(manual_order),0)-1 FROM tasks)) ON CONFLICT(id) DO NOTHING",
+                params![id, title, now.date().to_string()],
             ).map_err(db_error)?;
         }
         Action::Edit { id, change } => advanced::edit_occurrence(tx, &id, change, Scope::This)?,

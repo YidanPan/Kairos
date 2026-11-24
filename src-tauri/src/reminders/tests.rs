@@ -29,7 +29,7 @@ fn task_rules(rules: Vec<Rule>, bypass: bool) -> TaskPreferences {
 
 #[test]
 fn missed_reminders_are_grouped_once_and_future_items_stay_pending() {
-    let (_, mut db) = setup();
+    let (_directory, mut db) = setup();
     save_task(
         &db,
         "t",
@@ -192,7 +192,7 @@ fn overnight_quiet_period_uses_the_day_it_started() {
 
 #[test]
 fn recurrence_inherits_relative_rules_and_dnd_exception_only() {
-    let (_, mut db) = setup();
+    let (_directory, mut db) = setup();
     db.execute("INSERT INTO tasks(id,title) VALUES ('next','Next')", [])
         .unwrap();
     save_task(

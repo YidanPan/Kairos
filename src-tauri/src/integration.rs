@@ -67,12 +67,12 @@ pub fn setup(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         eprintln!("Could not load Kairos behavior: {error}");
         Behavior::default().for_platform()
     });
-    #[cfg(any(windows, target_os = "macos"))]
-    desktop::setup(app)?;
     app.manage(IntegrationState {
         preferences: Mutex::new(preferences),
         ..IntegrationState::default()
     });
+    #[cfg(any(windows, target_os = "macos"))]
+    desktop::setup(app)?;
     #[cfg(windows)]
     windows::setup(app);
     #[cfg(target_os = "macos")]
@@ -95,9 +95,9 @@ fn load_preferences(app: &AppHandle) -> Result<Behavior, Box<dyn std::error::Err
         .optional()?;
     Ok(json
         .as_deref()
-        .map(serde_json::from_str)
+        .map(serde_json::from_str::<Behavior>)
         .transpose()?
-        .unwrap_or_else(Behavior::default)
+        .unwrap_or_default()
         .for_platform())
 }
 

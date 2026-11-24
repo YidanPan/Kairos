@@ -261,6 +261,7 @@ pub fn start(app: &AppHandle) {
     });
 }
 
+#[cfg(windows)]
 pub fn before_update(data: &Path) -> Result<()> {
     if data.join(storage::FILE_NAME).is_file() {
         before_change(data)?;
@@ -385,16 +386,16 @@ pub async fn create_backup(app: AppHandle) -> Result<BackupStatus> {
 pub async fn set_backup_directory(app: AppHandle, reset: bool) -> Result<BackupStatus> {
     let data = app.path().app_data_dir().map_err(error)?;
     tauri::async_runtime::spawn_blocking(move || {
-        #[cfg(windows)]
+        #[cfg(any(windows, target_os = "macos"))]
         use tauri_plugin_dialog::DialogExt;
         let folder = if reset { None } else {
-            #[cfg(windows)]
+            #[cfg(any(windows, target_os = "macos"))]
             {
                 let Some(folder) = app.dialog().file().set_title("Choose a Kairos backup folder").blocking_pick_folder() else { return with_lock(|| status(&data)); };
                 Some(folder.into_path().map_err(error)?)
             }
-            #[cfg(not(windows))]
-            return Err("The backup folder picker is available on Windows.".into());
+            #[cfg(not(any(windows, target_os = "macos")))]
+            return Err("The backup folder picker is unavailable on this platform.".into());
         };
         with_lock(|| {
             let db = storage::open(&data).map_err(error)?;
@@ -412,7 +413,7 @@ pub async fn set_backup_directory(app: AppHandle, reset: bool) -> Result<BackupS
 
 #[tauri::command]
 pub async fn export_backup(app: AppHandle) -> Result<bool> {
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "macos"))]
     {
         use tauri_plugin_dialog::DialogExt;
         let data = app.path().app_data_dir().map_err(error)?;
@@ -454,10 +455,10 @@ pub async fn export_backup(app: AppHandle) -> Result<bool> {
         .await
         .map_err(error)?
     }
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, target_os = "macos")))]
     {
         let _ = app;
-        Err("The export dialog is available on Windows.".into())
+        Err("The export dialog is unavailable on this platform.".into())
     }
 }
 
@@ -474,7 +475,7 @@ pub async fn preview_restore(
             }
             with_lock(|| Ok(status(&data)?.directory.join(name)))?
         } else {
-            #[cfg(windows)]
+            #[cfg(any(windows, target_os = "macos"))]
             {
                 use tauri_plugin_dialog::DialogExt;
                 let Some(file) = app
@@ -488,8 +489,8 @@ pub async fn preview_restore(
                 };
                 file.into_path().map_err(error)?
             }
-            #[cfg(not(windows))]
-            return Err("The import dialog is available on Windows.".into());
+            #[cfg(not(any(windows, target_os = "macos")))]
+            return Err("The import dialog is unavailable on this platform.".into());
         };
         let (prepared, preview) = with_lock(|| stage(&data, &source))?;
         *app.state::<BackupState>().0.lock().map_err(error)? = Some(prepared);

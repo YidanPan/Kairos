@@ -2,7 +2,7 @@ name: Windows build
 
 on:
   push:
-    branches: [codex/signpath-prep]
+    branches: [codex/signpath-prep, codex/macos-preview]
   workflow_dispatch:
 
 permissions:

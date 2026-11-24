@@ -1,0 +1,53 @@
+name: macOS build
+
+on:
+  push:
+    branches: [codex/macos-preview]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 35
+    env:
+      RUSTUP_TOOLCHAIN: '1.100.0'
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.15.0'
+          cache: npm
+      - name: Set up Rust
+        run: rustup toolchain install 1.100.0 --profile minimal --target aarch64-apple-darwin
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Check frontend
+        run: |
+          npm run lint
+          npm test
+      - name: Test Rust backend
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+      - name: Build Apple Silicon disk image
+        env:
+          APPLE_SIGNING_IDENTITY: '-'
+        run: npm run tauri build -- --ci --target aarch64-apple-darwin
+      - name: Verify the app bundle
+        run: |
+          app=src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Kairos.app
+          plutil -lint "$app/Contents/Info.plist"
+          binary=$(plutil -extract CFBundleExecutable raw -o - "$app/Contents/Info.plist")
+          lipo -verify_arch arm64 "$app/Contents/MacOS/$binary"
+          codesign --verify --deep --strict "$app"
+          hdiutil verify src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+      - name: Upload macOS preview
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: kairos-macos-arm64-preview
+          path: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+          if-no-files-found: error

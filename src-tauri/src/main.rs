@@ -1,4 +1,4 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
 mod backup;
 mod integration;
@@ -57,17 +57,21 @@ fn main() {
         return;
     }
     let builder = tauri::Builder::default();
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "macos"))]
     let builder = builder
-        .plugin(tauri_plugin_single_instance::init(|app, args, _| {
-            if !reminders::activation::handle_launch(app, &args) {
-                if let Err(error) = integration::show(app, None) {
-                    eprintln!("Could not restore Kairos: {error}");
-                }
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _| {
+            #[cfg(windows)]
+            if reminders::activation::handle_launch(app, &_args) {
+                return;
+            }
+            if let Err(error) = integration::show(app, None) {
+                eprintln!("Could not restore Kairos: {error}");
             }
         }))
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_dialog::init());
+    #[cfg(target_os = "macos")]
+    let builder = builder.plugin(tauri_plugin_notification::init());
     builder
         .setup(|app| {
             reminders::identify(app.handle());
@@ -75,6 +79,8 @@ fn main() {
             integration::setup(app.handle())?;
             app.manage(backup::BackupState::default());
             app.manage(reminders::activation::UiQueue::default());
+            #[cfg(target_os = "macos")]
+            reminders::macos::setup(app.handle())?;
             #[cfg(windows)]
             reminders::activation::handle_launch(
                 app.handle(),
@@ -113,6 +119,18 @@ fn main() {
             reminders::reminder_state,
             reminders::activation::pending_notification_actions,
         ])
-        .run(context)
-        .expect("Kairos could not start");
+        .build(context)
+        .expect("Kairos could not start")
+        .run(|_app, _event| {
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen {
+                has_visible_windows: false,
+                ..
+            } = _event
+            {
+                if let Err(error) = integration::show(_app, None) {
+                    eprintln!("Could not reopen Kairos: {error}");
+                }
+            }
+        });
 }

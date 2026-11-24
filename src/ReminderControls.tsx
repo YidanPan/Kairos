@@ -122,7 +122,7 @@ function Settings({ data, save }: { data: State; save: (action: Action) => Promi
       }} /></label>
       <button type="button" disabled={!data.hasCustomSound} onClick={() => void save({ kind: 'previewSound' })}>Preview custom sound</button>
     </>}
-    <p className="task-hint">Windows controls notification volume.</p>
+    <p className="task-hint">Your system controls notification volume.</p>
     <h3>Quiet periods</h3>
     {preferences.periods.map((period, index) => <fieldset className="quiet-period" key={index}>
       <div className="task-form-pair">
@@ -206,7 +206,7 @@ export function ReminderHub({ active, open, onOpenChange, onShowTasks, openTask,
           <h3>{notice.title}</h3>
           {notice.deadline && <p className="task-hint">Due {notice.deadline}</p>}
           <p className="task-hint">{notice.count > 1 ? notice.count + ' reminders due' : 'Task reminder'}</p>
-          {notice.nativeStatus === 'unavailable' && <p className="task-hint">Windows toast unavailable.</p>}
+          {notice.nativeStatus === 'unavailable' && <p className="task-hint">System notification unavailable.</p>}
           <div className="task-actions">
             <button type="button" onClick={() => { onOpenChange(false); openTask(notice.taskId); }}>Open Task</button>
             <button type="button" onClick={() => void completeTask(notice.taskId).then((done) => { if (done) void save({ kind: 'dismiss', id: notice.id }); })}>Complete</button>

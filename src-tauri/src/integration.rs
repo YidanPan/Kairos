@@ -6,6 +6,8 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use crate::storage;
 
+#[cfg(any(windows, target_os = "macos"))]
+mod desktop;
 #[cfg(windows)]
 mod windows;
 
@@ -35,6 +37,15 @@ pub struct Behavior {
     whitelist: Vec<String>,
 }
 
+impl Behavior {
+    fn for_platform(mut self) -> Self {
+        if cfg!(target_os = "macos") && matches!(self.window_mode, WindowMode::Smart) {
+            self.window_mode = WindowMode::Desktop;
+        }
+        self
+    }
+}
+
 #[derive(Default)]
 pub struct IntegrationState {
     preferences: Mutex<Behavior>,
@@ -54,14 +65,22 @@ pub struct Integration {
 pub fn setup(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let preferences = load_preferences(app).unwrap_or_else(|error| {
         eprintln!("Could not load Kairos behavior: {error}");
-        Behavior::default()
+        Behavior::default().for_platform()
     });
+    #[cfg(any(windows, target_os = "macos"))]
+    desktop::setup(app)?;
     app.manage(IntegrationState {
         preferences: Mutex::new(preferences),
         ..IntegrationState::default()
     });
     #[cfg(windows)]
-    windows::setup(app)?;
+    windows::setup(app);
+    #[cfg(target_os = "macos")]
+    {
+        let state = app.state::<IntegrationState>();
+        let mode = state.preferences.lock().unwrap().window_mode;
+        apply_window_mode(app, mode)?;
+    }
     Ok(())
 }
 
@@ -78,11 +97,16 @@ fn load_preferences(app: &AppHandle) -> Result<Behavior, Box<dyn std::error::Err
         .as_deref()
         .map(serde_json::from_str)
         .transpose()?
-        .unwrap_or_default())
+        .unwrap_or_else(Behavior::default)
+        .for_platform())
 }
 
 pub fn reload_preferences(app: &AppHandle) {
     if let Ok(preferences) = load_preferences(app) {
+        #[cfg(target_os = "macos")]
+        if let Err(error) = apply_window_mode(app, preferences.window_mode) {
+            eprintln!("Could not restore Kairos window mode: {error}");
+        }
         *app.state::<IntegrationState>().preferences.lock().unwrap() = preferences;
     }
 }
@@ -96,9 +120,9 @@ pub fn integration_status(app: AppHandle) -> Integration {
     Integration {
         preferences,
         click_through,
-        #[cfg(windows)]
-        startup: windows::startup_enabled(&app).ok(),
-        #[cfg(not(windows))]
+        #[cfg(any(windows, target_os = "macos"))]
+        startup: desktop::startup_enabled(&app).ok(),
+        #[cfg(not(any(windows, target_os = "macos")))]
         startup: None,
         unavailable_shortcuts,
     }
@@ -106,6 +130,7 @@ pub fn integration_status(app: AppHandle) -> Integration {
 
 #[tauri::command]
 pub async fn save_behavior(app: AppHandle, mut preferences: Behavior) -> Result<Behavior, String> {
+    preferences = preferences.for_platform();
     preferences.whitelist = normalize_whitelist(preferences.whitelist)?;
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<IntegrationState>();
@@ -127,10 +152,22 @@ pub async fn save_behavior(app: AppHandle, mut preferences: Behavior) -> Result<
             )
             .map_err(|error| error.to_string())?;
         *current = preferences.clone();
+        #[cfg(target_os = "macos")]
+        if let Err(error) = apply_window_mode(&app, preferences.window_mode) {
+            eprintln!("Could not apply Kairos window mode: {error}");
+        }
         Ok(preferences)
     })
     .await
     .map_err(|error| error.to_string())?
+}
+
+#[cfg(target_os = "macos")]
+fn apply_window_mode(app: &AppHandle, mode: WindowMode) -> tauri::Result<()> {
+    if let Some(window) = app.get_webview_window("main") {
+        window.set_always_on_top(matches!(mode, WindowMode::AlwaysOnTop))?;
+    }
+    Ok(())
 }
 
 fn normalize_whitelist(entries: Vec<String>) -> Result<Vec<String>, String> {
@@ -156,9 +193,9 @@ fn normalize_whitelist(entries: Vec<String>) -> Result<Vec<String>, String> {
 
 #[tauri::command]
 pub fn set_launch_at_login(app: AppHandle, enabled: bool) -> Result<bool, String> {
-    #[cfg(windows)]
-    return windows::set_launch_at_login(&app, enabled);
-    #[cfg(not(windows))]
+    #[cfg(any(windows, target_os = "macos"))]
+    return desktop::set_launch_at_login(&app, enabled);
+    #[cfg(not(any(windows, target_os = "macos")))]
     {
         let _ = (app, enabled);
         Err("Launch at login is unavailable.".into())

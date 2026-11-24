@@ -18,6 +18,7 @@ pub(super) enum Action {
 }
 
 impl Action {
+    #[cfg(any(windows, test))]
     pub(super) fn name(self) -> &'static str {
         match self {
             Self::Complete => "complete",
@@ -60,11 +61,13 @@ pub(super) fn present(app: &AppHandle, action: UiAction) {
     let _ = app.emit("kairos-notification-action", ());
 }
 
+#[cfg(any(windows, test))]
 pub(super) struct Link {
     pub scheme: String,
     pub token: String,
 }
 
+#[cfg(any(windows, test))]
 impl Link {
     pub fn uri(&self, action: Action) -> String {
         format!(
@@ -76,10 +79,12 @@ impl Link {
     }
 }
 
+#[cfg(any(windows, test))]
 pub(super) fn scheme(identifier: &str) -> String {
     format!("kairos-notify-{}", identifier.to_ascii_lowercase())
 }
 
+#[cfg(any(windows, test))]
 fn parse_link<'a>(prefix: &str, arg: &'a str) -> Option<(Action, &'a str)> {
     let path = arg.strip_prefix(prefix)?.strip_prefix("activate/")?;
     let (action, token) = path.split_once('/')?;
@@ -156,6 +161,7 @@ fn redeem(
     Ok(Some(result))
 }
 
+#[cfg(windows)]
 pub fn handle_launch(app: &AppHandle, args: &[String]) -> bool {
     let prefix = format!("{}://", scheme(&app.config().identifier));
     let Some(arg) = args.get(1).filter(|arg| arg.starts_with(&prefix)) else {
@@ -164,6 +170,11 @@ pub fn handle_launch(app: &AppHandle, args: &[String]) -> bool {
     let Some((action, token)) = parse_link(&prefix, arg) else {
         return true;
     };
+    dispatch(app, action, token);
+    true
+}
+
+pub(super) fn dispatch(app: &AppHandle, action: Action, token: &str) {
     let token = token.to_owned();
     let app = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
@@ -181,7 +192,6 @@ pub fn handle_launch(app: &AppHandle, args: &[String]) -> bool {
             Err(error) => eprintln!("Kairos notification activation: {error}"),
         }
     });
-    true
 }
 
 #[cfg(test)]

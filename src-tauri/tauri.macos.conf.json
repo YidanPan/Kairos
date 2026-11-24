@@ -1,0 +1,24 @@
+{
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Kairos",
+        "width": 440,
+        "height": 420,
+        "minWidth": 320,
+        "minHeight": 250,
+        "decorations": false,
+        "shadow": true,
+        "visible": false,
+        "resizable": false,
+        "maximizable": false
+      }
+    ]
+  },
+  "bundle": {
+    "targets": ["app", "dmg"],
+    "icon": ["icons/icon.png", "icons/icon.icns"],
+    "macOS": { "minimumSystemVersion": "12.0" }
+  }
+}

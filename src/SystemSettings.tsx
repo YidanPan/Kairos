@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { saveBehavior, setClickThrough, setLaunchAtLogin } from './desktop';
+import { isMac, saveBehavior, setClickThrough, setLaunchAtLogin } from './desktop';
 import type { Behavior, Integration, StartupPage, WindowMode } from './desktop';
 
 const shortcuts = [
@@ -44,9 +44,9 @@ export function SystemSettings({ system, onUpdate }: {
         <option value="tasks">Tasks</option><option value="completed">Completed</option><option value="statistics">Statistics</option>
       </select></label>
       <label>Window mode<select value={preferences.windowMode} onChange={(event) => save({ windowMode: event.target.value as WindowMode })}>
-        <option value="smart">Smart</option><option value="desktop">Desktop</option><option value="alwaysOnTop">Always on Top</option>
+        {!isMac && <option value="smart">Smart</option>}<option value="desktop">{isMac ? 'Normal' : 'Desktop'}</option><option value="alwaysOnTop">Always on Top</option>
       </select></label>
-      {preferences.windowMode === 'smart' && <form className="task-form smart-preferences" onSubmit={(event) => {
+      {!isMac && preferences.windowMode === 'smart' && <form className="task-form smart-preferences" onSubmit={(event) => {
         event.preventDefault();
         save({ whitelist: whitelist.split('\n') });
       }}>
@@ -56,15 +56,15 @@ export function SystemSettings({ system, onUpdate }: {
       </form>}
       <label>Click-through<input type="checkbox" checked={system.clickThrough}
         onChange={(event) => { const checked = event.target.checked; void update(async () => ({ clickThrough: await setClickThrough(checked) })); }} /></label>
-      <p className="task-hint">Choose Restore Mouse Interaction from the tray to turn click-through off.</p>
+      <p className="task-hint">Choose Restore Mouse Interaction from the {isMac ? 'Kairos menu bar icon' : 'tray'} to turn click-through off.</p>
     </fieldset>
     <details className="integration-shortcuts">
       <summary>Global shortcuts</summary>
       <dl>{shortcuts.map(([label, key]) => <div key={label}><dt>{label}</dt>
-        <dd>{system.unavailableShortcuts.includes(label) ? 'Unavailable' : <kbd>Ctrl+Alt+Shift+{key}</kbd>}</dd>
+        <dd>{system.unavailableShortcuts.includes(label) ? 'Unavailable' : <kbd>{isMac ? '⌘⌥⇧' : 'Ctrl+Alt+Shift+'}{key}</kbd>}</dd>
       </div>)}</dl>
     </details>
-    {system.unavailableShortcuts.length > 0 && <p className="task-hint" role="status">Some shortcuts are unavailable. Use the tray or task panel.</p>}
+    {system.unavailableShortcuts.length > 0 && <p className="task-hint" role="status">Some shortcuts are unavailable. Use the {isMac ? 'menu bar' : 'tray'} or task panel.</p>}
     {error && <p className="status" role="alert">{error}</p>}
   </section>;
 }

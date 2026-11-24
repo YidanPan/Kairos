@@ -89,7 +89,7 @@ pub fn setup(app: &mut App) -> Result<(), SetupError> {
     let menu = Menu::with_items(app, &[&show, &settings, &restore, &exit])?;
     let mut tray = TrayIconBuilder::with_id("kairos")
         .menu(&menu)
-        .show_menu_on_left_click(false)
+        .show_menu_on_left_click(cfg!(target_os = "macos"))
         .tooltip("Kairos");
     if let Some(icon) = app.default_window_icon() {
         tray = tray.icon(icon.clone());
@@ -109,14 +109,16 @@ pub fn setup(app: &mut App) -> Result<(), SetupError> {
         }
     })
     .on_tray_icon_event(|tray, event| {
-        if matches!(
-            event,
-            TrayIconEvent::Click {
-                button: MouseButton::Left,
-                button_state: MouseButtonState::Up,
-                ..
-            }
-        ) {
+        if !cfg!(target_os = "macos")
+            && matches!(
+                event,
+                TrayIconEvent::Click {
+                    button: MouseButton::Left,
+                    button_state: MouseButtonState::Up,
+                    ..
+                }
+            )
+        {
             if let Err(error) = integration::show(tray.app_handle(), None) {
                 eprintln!("Could not show Kairos: {error}");
             }

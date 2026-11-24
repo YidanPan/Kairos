@@ -2,6 +2,11 @@ import { invoke, isTauri } from '@tauri-apps/api/core';
 import type { Board, TaskAction } from './taskModel';
 
 export const isDesktop = isTauri();
+export const isMac = navigator.platform.startsWith('Mac');
+
+export function usesPrimaryModifier(event: KeyboardEvent) {
+  return isMac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
+}
 
 export interface DailyGreeting {
   date: string;

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { DataSettings } from './DataSettings';
-import { getStorageInfo, integrationStatus, isDesktop } from './desktop';
+import { getStorageInfo, integrationStatus, isDesktop, isMac, usesPrimaryModifier } from './desktop';
 import type { DailyGreeting, Integration } from './desktop';
 import { GreetingSettings } from './GreetingSettings';
 import { SystemSettings } from './SystemSettings';
@@ -38,6 +38,7 @@ export function App() {
   }, []);
   const panelWindow = isDesktop ? getCurrentWindow() : null;
   const dark = appearance.theme === 'dark' || (appearance.theme === 'system' && systemDark);
+  const closeLabel = isMac ? 'Hide window' : 'Close to tray';
   const today = localDay(now);
   const customGreeting = storage.status === 'ready' && storage.dailyGreeting?.date === today ? storage.dailyGreeting.text : '';
   const hour = now.getHours();
@@ -86,7 +87,7 @@ export function App() {
       (error: unknown) => { if (active) { setIntegration(null); reportWindowError(error); } },
     );
     const keyboard = (event: KeyboardEvent) => {
-      if (event.ctrlKey && !event.altKey && !event.shiftKey && event.key === ',' && !document.querySelector('dialog[open]')) {
+      if (usesPrimaryModifier(event) && !event.altKey && !event.shiftKey && event.key === ',' && !document.querySelector('dialog[open]')) {
         event.preventDefault();
         showSettings();
       }
@@ -175,11 +176,11 @@ export function App() {
   const windowStatus = windowError && <p className="status" role="alert">{windowError}</p>;
 
   return (
-    <main className="panel" data-theme={dark ? 'dark' : 'light'} data-transparency={appearance.transparency} data-backdrop={backdrop}>
+    <main className="panel" data-theme={dark ? 'dark' : 'light'} data-transparency={isMac ? 'solid' : appearance.transparency} data-backdrop={backdrop}>
       <header className="panel-header" ref={chrome}>
         {panelWindow && (
           <div className="window-controls" aria-label="Window controls">
-            <button className="window-control close" type="button" aria-label="Close to tray" title="Close to tray" onClick={() => void panelWindow.hide().catch(reportWindowError)}><span aria-hidden="true">×</span></button>
+            <button className="window-control close" type="button" aria-label={closeLabel} title={closeLabel} onClick={() => void panelWindow.hide().catch(reportWindowError)}><span aria-hidden="true">×</span></button>
             <button className="window-control minimize" type="button" aria-label="Minimize" title="Minimize" onClick={() => void panelWindow.minimize().catch(reportWindowError)}><span aria-hidden="true">−</span></button>
             <button className="window-control expand" type="button" aria-label="Expand or restore" title="Expand or restore" onClick={() => void panel?.toggleExpanded()} disabled={!panel}><span aria-hidden="true">+</span></button>
           </div>
@@ -215,7 +216,7 @@ export function App() {
                 <option value="dark">Dark</option>
               </select>
             </label>
-            <label>
+            {!isMac && <label>
               Transparency
               <select value={appearance.transparency} onChange={(event) => updateAppearance({ ...appearance, transparency: event.target.value as Transparency })}>
                 <option value="solid">Solid</option>
@@ -223,7 +224,7 @@ export function App() {
                 <option value="medium">Medium</option>
                 <option value="transparent">Transparent</option>
               </select>
-            </label>
+            </label>}
             {storage.status === 'ready' && <GreetingSettings key={today} greeting={customGreeting} onSave={updateGreeting} />}
           </section>
           {integration && <SystemSettings system={integration} onUpdate={updateIntegration} />}

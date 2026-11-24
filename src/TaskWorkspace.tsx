@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { listen } from '@tauri-apps/api/event';
-import { taskBoard } from './desktop';
+import { taskBoard, usesPrimaryModifier } from './desktop';
 import type { StartupPage } from './desktop';
 import { CategoryReminders, ReminderHub } from './ReminderControls';
 import { CategoryOptions, TaskDetails } from './TaskDetails';
@@ -187,7 +187,7 @@ export function TaskWorkspace({ active, greeting, startupPage = 'tasks', onOpenS
       searchInput.current?.focus();
     };
     const open = (event: KeyboardEvent) => {
-      if (!active || !event.ctrlKey || event.altKey || event.shiftKey || document.querySelector('dialog[open]')) return;
+      if (!active || !usesPrimaryModifier(event) || event.altKey || event.shiftKey || document.querySelector('dialog[open]')) return;
       const key = event.key.toLowerCase();
       if (key === 'n' || key === 'f') event.preventDefault();
       if (key === 'n') newTask();

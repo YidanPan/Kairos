@@ -7,13 +7,17 @@ use rusqlite::{params, Connection, OptionalExtension, Transaction, TransactionBe
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::{storage, tasks};
+use crate::storage;
+#[cfg(windows)]
+use crate::tasks;
 
 #[cfg(test)]
 mod tests;
 
 pub mod activation;
 
+#[cfg(target_os = "macos")]
+pub(crate) mod macos;
 #[cfg(windows)]
 mod windows;
 
@@ -526,7 +530,7 @@ fn has_sound(database: &Connection) -> Result<bool> {
 }
 
 fn audio(database: &Connection, directory: &Path) -> Result<()> {
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "macos"))]
     {
         let sound: Vec<u8> = database
             .query_row(
@@ -537,12 +541,15 @@ fn audio(database: &Connection, directory: &Path) -> Result<()> {
             .optional()
             .map_err(db)?
             .ok_or("Choose a WAV file first.")?;
-        windows::play(directory, &sound)
+        #[cfg(windows)]
+        return windows::play(directory, &sound);
+        #[cfg(target_os = "macos")]
+        return macos::play(directory, &sound);
     }
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, target_os = "macos")))]
     {
         let _ = (database, directory);
-        Err("WAV preview is available on Windows.".into())
+        Err("WAV preview is unavailable on this platform.".into())
     }
 }
 
@@ -613,7 +620,12 @@ pub fn start(app: AppHandle) {
                         Ok(())=>true,
                         Err(error)=>{ eprintln!("Kairos notification delivery: {error}"); false }
                     };
-                    #[cfg(not(windows))]
+                    #[cfg(target_os = "macos")]
+                    let accepted=match macos::show(&app,&database,notice,custom) {
+                        Ok(())=>true,
+                        Err(error)=>{ eprintln!("Kairos notification delivery: {error}"); false }
+                    };
+                    #[cfg(not(any(windows, target_os = "macos")))]
                     let accepted=false;
                     database.execute("UPDATE reminder_batches SET native_status=?2 WHERE id=?1",
                         params![id,if accepted {"accepted"} else {"unavailable"}]).map_err(db)?;

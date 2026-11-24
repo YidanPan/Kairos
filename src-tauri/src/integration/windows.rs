@@ -1,8 +1,6 @@
 use std::{mem::size_of, path::Path, thread, time::Duration};
 
 use tauri::{AppHandle, Manager};
-use tauri_plugin_autostart::ManagerExt;
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use windows::{
     core::PWSTR,
     Win32::{
@@ -22,45 +20,9 @@ use windows::{
     },
 };
 
-use super::{set_click_through, show, IntegrationState, WindowMode};
+use super::{IntegrationState, WindowMode};
 
-const SHORTCUTS: [(&str, &str, Option<&str>); 5] = [
-    ("Ctrl+Alt+Shift+T", "Show or hide", None),
-    ("Ctrl+Alt+Shift+N", "New task", Some("kairos-new-task")),
-    ("Ctrl+Alt+Shift+F", "Search", Some("kairos-search")),
-    ("Ctrl+Alt+Shift+S", "Settings", Some("kairos-open-settings")),
-    ("Ctrl+Alt+Shift+R", "Restore mouse interaction", None),
-];
-
-pub(super) fn setup(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    app.plugin(
-        tauri_plugin_autostart::Builder::new()
-            .app_name(app.config().identifier.clone())
-            .build(),
-    )?;
-    let state = app.state::<IntegrationState>();
-    for (binding, label, event) in SHORTCUTS {
-        let registration = app
-            .global_shortcut()
-            .on_shortcut(binding, move |app, _, shortcut| {
-                if shortcut.state == ShortcutState::Released {
-                    let result = match label {
-                        "Show or hide" => toggle_window(app),
-                        "Restore mouse interaction" => {
-                            set_click_through(app.clone(), false).map(|_| ())
-                        }
-                        _ => show(app, event),
-                    };
-                    if let Err(error) = result {
-                        eprintln!("Kairos shortcut {binding}: {error}");
-                    }
-                }
-            });
-        if let Err(error) = registration {
-            state.unavailable_shortcuts.lock().unwrap().push(label);
-            eprintln!("Could not register Kairos shortcut {binding}: {error}");
-        }
-    }
+pub(super) fn setup(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let app = app.clone();
         thread::spawn(move || {
@@ -83,44 +45,6 @@ pub(super) fn setup(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                 thread::sleep(Duration::from_millis(600));
             }
         });
-    }
-    Ok(())
-}
-
-pub(super) fn startup_enabled(app: &AppHandle) -> Result<bool, String> {
-    app.autolaunch()
-        .is_enabled()
-        .map_err(|error| error.to_string())
-}
-
-pub(super) fn set_launch_at_login(app: &AppHandle, enabled: bool) -> Result<bool, String> {
-    let startup = app.autolaunch();
-    if startup_enabled(app)? != enabled {
-        if enabled {
-            startup.enable()
-        } else {
-            startup.disable()
-        }
-        .map_err(|error| error.to_string())?;
-    }
-    startup_enabled(app)
-}
-
-fn toggle_window(app: &AppHandle) -> Result<(), String> {
-    let window = app
-        .get_webview_window("main")
-        .ok_or("Kairos window is unavailable.")?;
-    let state = app.state::<IntegrationState>();
-    let click_through = *state
-        .click_through
-        .lock()
-        .map_err(|error| error.to_string())?;
-    let visible = window.is_visible().map_err(|error| error.to_string())?;
-    let minimized = window.is_minimized().map_err(|error| error.to_string())?;
-    if visible && !minimized && !click_through {
-        window.hide().map_err(|error| error.to_string())
-    } else {
-        show(app, None)
     }
 }
 

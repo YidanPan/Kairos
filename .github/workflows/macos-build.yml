@@ -42,7 +42,7 @@ jobs:
           app=src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Kairos.app
           plutil -lint "$app/Contents/Info.plist"
           binary=$(plutil -extract CFBundleExecutable raw -o - "$app/Contents/Info.plist")
-          lipo -verify_arch arm64 "$app/Contents/MacOS/$binary"
+          lipo "$app/Contents/MacOS/$binary" -verify_arch arm64
           codesign --verify --deep --strict "$app"
           hdiutil verify src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
       - name: Smoke-test app startup
@@ -56,6 +56,8 @@ jobs:
             sleep 1
             kill -0 "$pid"
             if test -f "$HOME/Library/Application Support/app.kairos.desktop/kairos.sqlite3"; then
+              sleep 2
+              kill -0 "$pid"
               exit 0
             fi
           done

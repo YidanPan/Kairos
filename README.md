@@ -4,13 +4,13 @@
 
 **At your own pace.**
 
-Kairos is a local-first personal task manager for Windows 11. Its compact desktop panel keeps today's tasks within reach. Give a task a scheduled date to decide when to work on it, and a deadline to mark when it needs to be finished.
+Kairos is a local-first personal task manager with previews for Windows 11 and Apple Silicon Macs. Its compact desktop panel keeps today's tasks within reach. Give a task a scheduled date to decide when to work on it, and a deadline to mark when it needs to be finished.
 
 <p align="center">
   <img src="docs/screenshots/today.png" width="500" alt="Kairos in light mode with a custom greeting, daily progress, and tasks organized into Today, Upcoming, and No Date">
 </p>
 
-[Windows preview](#windows-preview) · [Getting started](#getting-started) · [Build from source](#build-from-source)
+[Windows preview](#windows-preview) · [macOS preview](#macos-preview) · [Getting started](#getting-started) · [Build from source](#build-from-source)
 
 ## What you can do
 
@@ -32,6 +32,10 @@ The screenshots use sample data in the Windows 1.0.0 preview. The default branch
 Download **Kairos_1.0.0_x64-setup.exe** from the release page, run it on an x64 Windows 11 PC, then open **Kairos** from the Start menu. [Download the Windows preview](https://github.com/YidanPan/Kairos/releases/tag/v1.0.0-preview.1)
 
 The installer is unsigned, so Windows may display a SmartScreen prompt. Windows 11 normally includes WebView2. The installer downloads it if the runtime is missing. ARM64 has yet to be verified on hardware.
+
+## macOS preview
+
+Download **Kairos_1.0.0_aarch64.dmg** for an Apple Silicon Mac running macOS 12 or newer. Open the disk image and drag Kairos into Applications. The preview uses an ad hoc signature, and macOS may show a security notice on first launch. [Download the macOS preview](https://github.com/YidanPan/Kairos/releases/tag/v1.0.0-macos-preview.1)
 
 ## Getting started
 

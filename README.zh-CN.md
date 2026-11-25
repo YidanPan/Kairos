@@ -4,13 +4,13 @@
 
 **按自己的节奏。**
 
-Kairos 是一款面向 Windows 11 的个人任务管理器。紧凑的桌面面板让你随时查看今天要做的事。用计划日期安排哪天做，用截止日期标记最晚何时完成。任务数据保存在本机。
+Kairos 是一款个人任务管理器，目前提供 Windows 11 和 Apple Silicon Mac 预览版。紧凑的桌面面板让你随时查看今天要做的事。用计划日期安排哪天做，用截止日期标记最晚何时完成。任务数据保存在本机。
 
 <p align="center">
   <img src="docs/screenshots/today.png" width="500" alt="Kairos 浅色任务面板，显示每日问候语、完成进度，以及今天、即将到来和未安排日期的任务">
 </p>
 
-[Windows 预览版](#windows-预览版) · [快速上手](#快速上手) · [从源码构建](#从源码构建)
+[Windows 预览版](#windows-预览版) · [macOS 预览版](#macos-预览版) · [快速上手](#快速上手) · [从源码构建](#从源码构建)
 
 ## 主要功能
 
@@ -32,6 +32,10 @@ Kairos 是一款面向 Windows 11 的个人任务管理器。紧凑的桌面面�
 从发布页下载 **Kairos_1.0.0_x64-setup.exe**，在 Windows 11 x64 电脑上运行，安装后从开始菜单打开 **Kairos**。 [下载 Windows 预览版](https://github.com/YidanPan/Kairos/releases/tag/v1.0.0-preview.1)
 
 安装包目前未签名，Windows 可能显示 SmartScreen 提示。Windows 11 通常自带 WebView2，缺少时安装程序会联网下载。ARM64 兼容性待实机验证。
+
+## macOS 预览版
+
+下载 **Kairos_1.0.0_aarch64.dmg**，打开磁盘映像，把 Kairos 拖到「应用程序」。适用于搭载 M 系列芯片、运行 macOS 12 或更新版本的 Mac。预览包尚未经过 Apple 公证，首次打开时系统可能显示安全提示。 [下载 macOS 预览版](https://github.com/YidanPan/Kairos/releases/tag/v1.0.0-macos-preview.1)
 
 ## 快速上手
 

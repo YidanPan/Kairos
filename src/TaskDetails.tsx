@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { OptionalDateTimeInput } from './OptionalDateTimeInput';
 import { Modal } from './TaskModal';
 import { ScopeOptions, TaskAdvanced } from './TaskAdvanced';
 import type { DraftSubtask, TaskCommand } from './TaskAdvanced';
@@ -12,7 +13,7 @@ export function CategoryOptions({ categories, empty }: { categories: Category[];
 
 function DateField({ label, value, change, disabled }: { label: string; value: string; change: (value: string) => void; disabled: boolean }) {
   return <div className="task-date-field">
-    <label>{label}<input type="date" value={value} disabled={disabled} onChange={(event) => change(event.target.value)} /></label>
+    <label>{label}<OptionalDateTimeInput type="date" value={value} emptyText="No date set" disabled={disabled} onChange={change} /></label>
     <button type="button" disabled={disabled} aria-label={`Set ${label.toLowerCase()} to today`} onClick={() => change(localDay(new Date()))}>Today</button>
   </div>;
 }
@@ -119,8 +120,11 @@ export function TaskDetails({ task, categories, history, subtasks, run, onClose 
       <DateField label="Scheduled date" value={draft.scheduledDate ?? ''} disabled={readOnly} change={(value) => setDraft({ ...draft, scheduledDate: value || null })} />
       <DateField label="Due date" value={draft.dueDate ?? ''} disabled={readOnly}
         change={(value) => setDraft({ ...draft, dueDate: value || null, dueTime: value ? draft.dueTime : null })} />
-      {draft.dueDate && <label>Due time<input type="time" value={draft.dueTime ?? ''} disabled={readOnly}
-        onChange={(event) => setDraft({ ...draft, dueTime: event.target.value || null })} />{!draft.dueTime && <small>Defaults to 23:59</small>}</label>}
+      {draft.dueDate && <label>Due time
+        <OptionalDateTimeInput type="time" value={draft.dueTime ?? ''} emptyText="No time set" disabled={readOnly}
+          onChange={(value) => setDraft({ ...draft, dueTime: value || null })} />
+        {!draft.dueTime && <small>Defaults to 23:59</small>}
+      </label>}
       <label>Notes<textarea rows={3} value={draft.notes} readOnly={readOnly} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} /></label>
       {history.length > 0 && <details className="task-history"><summary>Schedule history</summary><ul>
         {history.map((entry, index) => <li key={`${entry.changedAt}-${index}`}>{entry.previousDate} → {entry.nextDate ?? 'No Date'}{entry.automatic && ' · Rescheduled'}</li>)}

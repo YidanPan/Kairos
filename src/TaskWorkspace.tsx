@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { taskBoard, usesPrimaryModifier } from './desktop';
 import type { StartupPage } from './desktop';
+import { OptionalDateTimeInput } from './OptionalDateTimeInput';
 import { CategoryReminders, ReminderHub } from './ReminderControls';
 import { CategoryOptions, TaskDetails } from './TaskDetails';
 import { Modal } from './TaskModal';
@@ -285,8 +286,10 @@ export function TaskWorkspace({ active, greeting, startupPage = 'tasks', onOpenS
               <label>Priority<select aria-label="Filter by priority" value={filters.priority} onChange={(event) => setFilters({ ...filters, priority: event.target.value as Priority | '' })}>
                 <option value="">All priorities</option>{priorities.map((priority) => <option key={priority} value={priority}>{priority[0].toUpperCase() + priority.slice(1)}</option>)}
               </select></label>
-              <label>Scheduled date<input type="date" value={filters.scheduledDate} onChange={(event) => setFilters({ ...filters, scheduledDate: event.target.value })} /></label>
-              <label>Due date<input type="date" value={filters.dueDate} onChange={(event) => setFilters({ ...filters, dueDate: event.target.value })} /></label>
+              <label>Scheduled date<OptionalDateTimeInput type="date" value={filters.scheduledDate} emptyText="Any date"
+                onChange={(scheduledDate) => setFilters({ ...filters, scheduledDate })} /></label>
+              <label>Due date<OptionalDateTimeInput type="date" value={filters.dueDate} emptyText="Any date"
+                onChange={(dueDate) => setFilters({ ...filters, dueDate })} /></label>
               <label>Overdue<select value={filters.overdue} onChange={(event) => setFilters({ ...filters, overdue: event.target.value as typeof filters.overdue })}>
                 <option value="">Any</option><option value="yes">Overdue</option><option value="no">Not overdue</option>
               </select></label>

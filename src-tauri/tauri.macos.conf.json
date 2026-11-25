@@ -9,6 +9,7 @@
         "minWidth": 320,
         "minHeight": 250,
         "decorations": false,
+        "transparent": true,
         "shadow": true,
         "visible": false,
         "resizable": false,

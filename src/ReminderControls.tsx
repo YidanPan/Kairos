@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { OptionalDateTimeInput } from './OptionalDateTimeInput';
 import { Modal } from './TaskModal';
 import type { ReminderRule as Rule, Task, TaskReminderPreferences as TaskPreferences } from './taskModel';
 
@@ -51,7 +52,7 @@ function TaskRules({ task, draft, inherited, onChange }: {
       {!task.dueDate && taskOffsets.length > 0 && <p className="task-hint">Deadline reminders wait for a due date.</p>}
       {customRules.map(({ at }) => <div className="task-actions" key={at}><time>{at.replace('T', ' ')}</time>
         <button type="button" aria-label={'Remove reminder ' + at} onClick={() => onChange({ ...draft, rules: draft.rules.filter((rule) => rule.kind !== 'custom' || rule.at !== at) })}>Remove</button></div>)}
-      <label>Custom reminder<input type="datetime-local" value={custom} onChange={(event) => setCustom(event.target.value)} /></label>
+      <label>Custom reminder<OptionalDateTimeInput type="datetime-local" value={custom} emptyText="Choose date and time" onChange={setCustom} /></label>
       <button type="button" disabled={!custom || customRules.some((rule) => rule.at === custom)} onClick={() => {
         onChange({ ...draft, rules: [...draft.rules, { kind: 'custom', at: custom }] });
         setCustom('');
@@ -215,7 +216,7 @@ export function ReminderHub({ active, open, onOpenChange, onShowTasks, openTask,
           </div>
           {snoozing === notice.id && <div className="task-form">
             <div className="task-actions">{[5, 15, 30, 60].map((minutes) => <button key={minutes} type="button" onClick={() => void save({ kind: 'snooze', id: notice.id, minutes })}>{minutes} min</button>)}</div>
-            <label>Custom snooze<input type="datetime-local" value={until} onChange={(event) => setUntil(event.target.value)} /></label>
+            <label>Custom snooze<OptionalDateTimeInput type="datetime-local" value={until} emptyText="Choose date and time" onChange={setUntil} /></label>
             <button type="button" disabled={!until} onClick={() => void save({ kind: 'snooze', id: notice.id, until })}>Snooze until this time</button>
           </div>}
         </section>)}

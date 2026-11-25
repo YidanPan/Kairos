@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { OptionalDateTimeInput } from './OptionalDateTimeInput';
 import type { EditScope, Frequency, RecurrenceRule, RepeatEdit, Subtask, Task, TaskAction } from './taskModel';
 
 export type DraftSubtask = Pick<Subtask, 'id' | 'title'> & { completed: boolean };
@@ -40,7 +41,8 @@ function RepeatForm({ task, repeat, onChange }: { task: Task; repeat: RepeatEdit
       {rule.frequency === 'months' && <label>Day of month<input type="number" min="1" max="31" step="1" value={rule.monthDay ?? ''} placeholder="Scheduled day"
         onChange={(event) => setRule({ ...rule, monthDay: event.target.value ? Number(event.target.value) : null })} />
         <small>Months without this day are skipped.</small></label>}
-      <label>End date<input type="date" value={rule.endDate ?? ''} onChange={(event) => setRule({ ...rule, endDate: event.target.value || null })} />
+      <label>End date<OptionalDateTimeInput type="date" value={rule.endDate ?? ''} emptyText="Choose date"
+        onChange={(value) => setRule({ ...rule, endDate: value || null })} />
         {!rule.endDate && <small>No end date</small>}</label>
     </>}
     {task.seriesId && <label>{rule ? 'Change repeat rule for' : 'Remove repeat from'}

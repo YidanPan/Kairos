@@ -1,9 +1,31 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { OptionalDateTimeInput } from '../node_modules/.cache/kairos-tests/OptionalDateTimeInput.js';
 import { emptyFilters, filterTasks, groupTasks, isOverdue, moveTask, taskSection, taskStatus } from '../node_modules/.cache/kairos-tests/taskModel.js';
 
 const now = new Date(2026, 10, 21, 14, 30);
 const task = (id, changes = {}) => ({ id, title: id, notes: '', priority: 'medium', manualOrder: 0, ...changes });
+
+test('optional date and time pickers keep native inputs empty until a value is chosen', () => {
+  for (const [type, value, emptyText] of [
+    ['date', '2026-11-21', 'No date set'],
+    ['time', '16:45', 'No time set'],
+    ['datetime-local', '2026-11-21T16:45', 'Choose date and time'],
+  ]) {
+    const render = (value) => renderToStaticMarkup(createElement(OptionalDateTimeInput, { type, value, emptyText, onChange() {} }));
+    const empty = render('');
+    assert.ok(empty.includes('data-empty="true"'));
+    assert.ok(empty.includes(`type="${type}" value=""`));
+    assert.ok(empty.includes(emptyText));
+
+    const filled = render(value);
+    assert.ok(filled.includes('data-empty="false"'));
+    assert.ok(filled.includes(`type="${type}" value="${value}"`));
+    assert.ok(!filled.includes(emptyText));
+  }
+});
 
 test('scheduled dates and deadline timestamps classify tasks independently', () => {
   const sameDay = task('same', { dueDate: '2026-11-21' });

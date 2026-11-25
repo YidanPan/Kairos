@@ -176,7 +176,8 @@ export function App() {
   const windowStatus = windowError && <p className="status" role="alert">{windowError}</p>;
 
   return (
-    <main className="panel" data-theme={dark ? 'dark' : 'light'} data-transparency={isMac ? 'solid' : appearance.transparency} data-backdrop={backdrop}>
+    <main className="panel" data-platform={isMac ? 'macos' : undefined} data-theme={dark ? 'dark' : 'light'}
+      data-transparency={isMac && !backdrop ? 'solid' : appearance.transparency} data-backdrop={backdrop}>
       <header className="panel-header" ref={chrome}>
         {panelWindow && (
           <div className="window-controls" aria-label="Window controls">
@@ -216,7 +217,7 @@ export function App() {
                 <option value="dark">Dark</option>
               </select>
             </label>
-            {!isMac && <label>
+            <label>
               Transparency
               <select value={appearance.transparency} onChange={(event) => updateAppearance({ ...appearance, transparency: event.target.value as Transparency })}>
                 <option value="solid">Solid</option>
@@ -224,7 +225,7 @@ export function App() {
                 <option value="medium">Medium</option>
                 <option value="transparent">Transparent</option>
               </select>
-            </label>}
+            </label>
             {storage.status === 'ready' && <GreetingSettings key={today} greeting={customGreeting} onSave={updateGreeting} />}
           </section>
           {integration && <SystemSettings system={integration} onUpdate={updateIntegration} />}

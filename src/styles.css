@@ -241,6 +241,23 @@ button:disabled { cursor: default; opacity: .6; }
 }
 .task-workspace input:focus-visible, .task-form textarea:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 
+.optional-date-time { display: grid; min-width: 0; }
+.optional-date-time > * { grid-area: 1 / 1; }
+.optional-date-time input { width: 100%; }
+.optional-date-time-placeholder { display: none; }
+/* macOS WebKit draws a sample date or time even when the value is empty. */
+.panel[data-platform='macos'] .optional-date-time[data-empty='true']:not(:focus-within) input { opacity: 0; }
+.panel[data-platform='macos'] .optional-date-time[data-empty='true']:not(:focus-within) .optional-date-time-placeholder {
+  display: grid;
+  align-items: center;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  background: var(--control);
+  pointer-events: none;
+}
+
 .task-section { border-top: 1px solid var(--border); padding: 7px 0 8px; }
 .task-section h3 { margin: 0 0 4px; font-size: .82rem; font-weight: 650; }
 .task-section ul { list-style: none; padding: 0; margin: 0; }

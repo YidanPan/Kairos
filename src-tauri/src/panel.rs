@@ -178,8 +178,22 @@ pub fn set_panel_backdrop(window: WebviewWindow, tint: Option<(u8, u8, u8, u8)>)
         }
         let _ = window_vibrancy::clear_acrylic(&window);
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    {
+        use tauri::window::{Effect, EffectState, EffectsBuilder};
+
+        let effects = tint.map(|_| {
+            EffectsBuilder::new()
+                .effect(Effect::Sidebar)
+                .state(EffectState::Active)
+                .radius(12.0)
+                .build()
+        });
+        return window.set_effects(effects).is_ok() && tint.is_some();
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
     let _ = (window, tint);
+    #[cfg(not(target_os = "macos"))]
     false
 }
 

@@ -84,3 +84,11 @@ Status **PASS** for Phases 3 and 4.
 
 - An isolated Windows build verified that Confirm saves task fields, subtasks, reminders, and recurrence together. The saved values reloaded after relaunch. Cancel, close, Esc, and clicking outside left the database unchanged.
 - An invalid repeat end date kept the editor open with its draft and rolled back the database changes. All 36 Rust tests and 11 frontend tests passed, along with ESLint, TypeScript, and Clippy.
+
+## macOS preview verification
+
+- On Apple M4 hardware running macOS 15.6, launched the arm64 preview from its mounted disk image. Quick Add put the test task in Today. Cancel discarded a priority edit, and Confirm saved it. After quitting and relaunching Kairos, the task still appeared in Today with its saved High priority.
+- Verified the standalone Settings page, window resizing, and reopening the hidden panel with the macOS menu-bar icon. Switching from Search to Filter to More to Reminders closed the previous panel each time.
+- A due reminder appeared in the Kairos inbox, and its Open Task button opened the matching details. The same reminder appeared in macOS Notification Center with Open Task, Snooze, and Complete in its Options menu. Native action results and sound still need direct verification.
+- The Mac date and time controls displayed values for empty fields. An unset deadline date looked like today, and an unset deadline time displayed 12:30 even though the reminder used the 23:59 default. The field display needs follow-up.
+- Launching from Applications, global shortcuts, launch at login, backup and restore, sleep and wake delivery, and display reconnection remain open on Mac hardware.

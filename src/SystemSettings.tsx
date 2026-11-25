@@ -44,14 +44,15 @@ export function SystemSettings({ system, onUpdate }: {
         <option value="tasks">Tasks</option><option value="completed">Completed</option><option value="statistics">Statistics</option>
       </select></label>
       <label>Window mode<select value={preferences.windowMode} onChange={(event) => save({ windowMode: event.target.value as WindowMode })}>
-        {!isMac && <option value="smart">Smart</option>}<option value="desktop">{isMac ? 'Normal' : 'Desktop'}</option><option value="alwaysOnTop">Always on Top</option>
+        <option value="smart">Smart</option><option value="desktop">{isMac ? 'Normal' : 'Desktop'}</option><option value="alwaysOnTop">Always on Top</option>
       </select></label>
-      {!isMac && preferences.windowMode === 'smart' && <form className="task-form smart-preferences" onSubmit={(event) => {
+      {preferences.windowMode === 'smart' && <form className="task-form smart-preferences" onSubmit={(event) => {
         event.preventDefault();
         save({ whitelist: whitelist.split('\n') });
       }}>
-        <label>Smart mode whitelist<textarea rows={2} value={whitelist} placeholder="example.exe" onChange={(event) => setWhitelist(event.target.value)} /></label>
-        <p className="task-hint">One .exe filename per line. Leave empty to allow all apps.</p>
+        <label>Smart mode whitelist<textarea rows={2} value={whitelist} placeholder={isMac ? 'Safari\ncom.apple.TextEdit' : 'example.exe'}
+          onChange={(event) => setWhitelist(event.target.value)} /></label>
+        <p className="task-hint">{isMac ? 'One app name or bundle ID per line.' : 'One .exe filename per line.'} Leave empty to allow all apps.</p>
         <button type="submit" disabled={whitelist === preferences.whitelist.join('\n')}>Save whitelist</button>
       </form>}
       <label>Click-through<input type="checkbox" checked={system.clickThrough}

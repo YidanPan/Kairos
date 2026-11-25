@@ -1,7 +1,9 @@
 use std::{sync::mpsc, thread, time::Duration};
 
-use objc2::MainThreadMarker;
-use objc2_app_kit::{NSApplication, NSApplicationPresentationOptions, NSWorkspace};
+use objc2::{runtime::NSObjectProtocol, MainThreadMarker};
+use objc2_app_kit::{
+    NSApplication, NSApplicationPresentationOptions, NSRunningApplication, NSWorkspace,
+};
 use tauri::{AppHandle, Manager};
 
 use super::{IntegrationState, WindowMode};
@@ -59,7 +61,7 @@ fn smart_top(whitelist: &[String], previous: bool) -> bool {
     let Some(frontmost) = NSWorkspace::sharedWorkspace().frontmostApplication() else {
         return previous;
     };
-    if frontmost.processIdentifier() as u32 == std::process::id() {
+    if frontmost.isEqual(Some(&NSRunningApplication::currentApplication())) {
         return previous;
     }
     let name = frontmost.localizedName().map(|value| value.to_string());
